@@ -77,7 +77,6 @@ export default function Orders() {
   };
 
   return (
-    <Layout>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-start">
@@ -182,6 +181,5 @@ export default function Orders() {
         </CardContent>
       </Card>
     </div>
-    </Layout>
   );
 }

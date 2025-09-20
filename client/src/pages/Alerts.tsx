@@ -84,7 +84,6 @@ export default function Alerts() {
   };
 
   return (
-    <Layout>
     <div className="space-y-6">
       {/* Header */}
       <div>
@@ -187,6 +186,5 @@ export default function Alerts() {
         </CardContent>
       </Card>
     </div>
-    </Layout>
   );
 }

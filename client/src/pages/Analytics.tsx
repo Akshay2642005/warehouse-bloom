@@ -30,7 +30,6 @@ const inventoryTurnover = [
 
 export default function Analytics() {
   return (
-    <Layout>
     <div className="space-y-6">
       {/* Header */}
       <div>
@@ -90,24 +89,24 @@ export default function Analytics() {
               <AreaChart data={salesData}>
                 <defs>
                   <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary-blue))" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(var(--primary-blue))" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="hsl(var(--primary-blue))" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="hsl(var(--primary-blue))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip 
-                  contentStyle={{ 
+                <Tooltip
+                  contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px'
                   }}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="sales" 
-                  stroke="hsl(var(--primary-blue))" 
+                <Area
+                  type="monotone"
+                  dataKey="sales"
+                  stroke="hsl(var(--primary-blue))"
                   fill="url(#salesGradient)"
                   strokeWidth={2}
                 />
@@ -143,8 +142,8 @@ export default function Analytics() {
             <div className="mt-4 grid grid-cols-2 gap-2">
               {categoryData.map((item, index) => (
                 <div key={index} className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
+                  <div
+                    className="w-3 h-3 rounded-full"
                     style={{ backgroundColor: item.color }}
                   />
                   <span className="text-sm text-muted-foreground">{item.name}: {item.value}%</span>
@@ -165,17 +164,17 @@ export default function Analytics() {
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip 
-                  contentStyle={{ 
+                <Tooltip
+                  contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px'
                   }}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="turnover" 
-                  stroke="hsl(var(--success))" 
+                <Line
+                  type="monotone"
+                  dataKey="turnover"
+                  stroke="hsl(var(--success))"
                   strokeWidth={3}
                   dot={{ fill: "hsl(var(--success))", strokeWidth: 2, r: 6 }}
                 />
@@ -195,17 +194,17 @@ export default function Analytics() {
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip 
-                  contentStyle={{ 
+                <Tooltip
+                  contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px'
                   }}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="orders" 
-                  stroke="hsl(var(--warning))" 
+                <Line
+                  type="monotone"
+                  dataKey="orders"
+                  stroke="hsl(var(--warning))"
                   strokeWidth={3}
                   dot={{ fill: "hsl(var(--warning))", strokeWidth: 2, r: 6 }}
                 />
@@ -215,6 +214,5 @@ export default function Analytics() {
         </Card>
       </div>
     </div>
-    </Layout>
   );
 }

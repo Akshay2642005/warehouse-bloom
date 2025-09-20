@@ -1,4 +1,3 @@
-import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -71,7 +70,6 @@ export default function Staff() {
   };
 
   return (
-    <Layout>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-start">
@@ -181,6 +179,5 @@ export default function Staff() {
         ))}
       </div>
     </div>
-    </Layout>
   );
 }
