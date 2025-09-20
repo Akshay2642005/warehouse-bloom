@@ -32,6 +32,22 @@ export async function loginUser(data: LoginPayload): Promise<{ user: User; token
  */
 export async function logoutUser(): Promise<void> {
   await axiosInstance.post('/auth/logout');
-  localStorage.removeItem('auth_token');
   localStorage.removeItem('user');
-} 
+}
+
+/**
+ * Gets the current authenticated user from backend.
+ * Returns user data if authenticated, null otherwise.
+ */
+export async function getCurrentUser(): Promise<User | null> {
+  try {
+    const response = await axiosInstance.get<ApiResponse<{ user: User }>>('/auth/me');
+    return response.data.data?.user || null;
+  } catch (error: any) {
+    if (error.response?.status !== 401) {
+      console.error('getCurrentUser error:', error);
+    }
+    return null;
+  }
+}
+

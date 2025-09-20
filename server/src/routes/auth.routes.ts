@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { registerUser, loginUser } from '../controllers/auth.controller';
+import { registerUser, loginUser, getCurrentUser } from '../controllers/auth.controller';
+import { authenticate } from '../middlewares/requireAuth';
 
 export const authRouter = Router();
 
@@ -32,3 +33,13 @@ authRouter.post('/logout', (req, res) => {
   res.clearCookie('token');
   res.json({ success: true, message: 'Logged out successfully' });
 });
+
+
+/**
+ * @openapi
+ * /api/auth/me:
+ *   get:
+ *     summary: Get current logged-in user
+ *     tags: [Auth]
+ */
+authRouter.get('/me', authenticate, getCurrentUser);

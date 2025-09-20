@@ -8,6 +8,7 @@ import { useMutation } from '@tanstack/react-query';
 import { logoutUser } from '@/api/auth';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/contexts/UserContext'; // your context hook
 
 interface LayoutProps {
   children: ReactNode;
@@ -16,24 +17,29 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+  const { setUser } = useUser(); // access user context
+
   const logoutMutation = useMutation({
     mutationFn: logoutUser,
     onSuccess: () => {
-      toast({ title: "Success", description: "Logged out successfully" });
-      navigate('/');
-    },
-    onError: () => {
-      // Clear local storage even if API call fails
+      // Clear local storage and context
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
-      navigate('/');
+      setUser(null);
+
+      toast({ title: "Success", description: "Logged out successfully" });
+      navigate('/', { replace: true });
+    },
+    onError: () => {
+      // Ensure logout even if API call fails
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user');
+      setUser(null);
+      navigate('/', { replace: true });
     }
   });
 
-  const handleLogout = () => {
-    logoutMutation.mutate();
-  };
+  const handleLogout = () => logoutMutation.mutate();
 
   return (
     <SidebarProvider>
@@ -44,23 +50,21 @@ export function Layout({ children }: LayoutProps) {
           <header className="h-16 flex items-center justify-between border-b bg-card px-6">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">Warehouse Management</h2>
-              </div>
+              <h2 className="text-lg font-semibold text-foreground">Warehouse Management</h2>
             </div>
             <div className="flex items-center gap-4">
               <ThemeToggle />
               <div className="text-sm text-muted-foreground">
-                {new Date().toLocaleDateString('en-US', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
+                {new Date().toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
                 })}
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleLogout}
                 disabled={logoutMutation.isPending}
               >
@@ -70,7 +74,7 @@ export function Layout({ children }: LayoutProps) {
             </div>
           </header>
 
-          {/* Main Content */}
+          {/* Main content */}
           <main className="flex-1 p-6">
             {children}
           </main>
@@ -79,3 +83,4 @@ export function Layout({ children }: LayoutProps) {
     </SidebarProvider>
   );
 }
+
