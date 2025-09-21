@@ -23,12 +23,12 @@ dashboardRouter.get('/stats', requireAuth, async (req, res) => {
 
     // Calculate total inventory value
     if (totalItems.total > 0) {
-      const allItems = await ItemService.getItems({ 
-        page: 1, 
-        pageSize: totalItems.total 
+      const allItems = await ItemService.getItems({
+        page: 1,
+        pageSize: totalItems.total
       });
-      
-      stats.totalValue = allItems.items.reduce((sum, item) => 
+
+      stats.totalValue = allItems.items.reduce((sum, item) =>
         sum + (item.quantity * item.priceCents), 0
       );
     }
@@ -51,7 +51,7 @@ dashboardRouter.get('/stats', requireAuth, async (req, res) => {
 dashboardRouter.get('/alerts', requireAuth, async (req, res) => {
   try {
     const lowStockItems = await ItemService.getLowStockItems(10);
-    
+
     res.json(createResponse({
       data: { alerts: lowStockItems },
       message: 'Alerts retrieved successfully'
