@@ -1,5 +1,6 @@
 import { createClient, RedisClientType } from 'redis';
 import { logger } from './logger';
+import { config } from './config';
 
 let client: RedisClientType | null = null;
 
@@ -8,7 +9,7 @@ let client: RedisClientType | null = null;
  */
 export async function connectRedis(): Promise<RedisClientType> {
   if (client) return client;
-  const url = process.env.REDIS_URL || 'redis://localhost:6379';
+  const url = config.REDIS_URL;
   client = createClient({ url });
   client.on('error', (err) => logger.error('Redis Client Error', { err }));
   await client.connect();
