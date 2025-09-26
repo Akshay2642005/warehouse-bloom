@@ -12,6 +12,12 @@ import { itemsRouter } from './routes/items.routes';
 import { dashboardRouter } from './routes/dashboard.routes';
 import { statusRouter } from './routes/status.routes';
 import { config } from './utils/config';
+import { userRouter } from './routes/user.routes';
+import { eventsRouter } from './routes/events.routes';
+import { ordersRouter } from './routes/orders.routes';
+import { alertsRouter } from './routes/alerts.routes';
+import { settingsRouter } from './routes/settings.routes';
+import { shipmentsRouter } from './routes/shipments.routes';
 
 /**
  * Creates and configures the Express application.
@@ -41,8 +47,14 @@ export function createApp(): Application {
   // API routes
   app.use('/api/auth', authRouter);
   app.use('/api/items', itemsRouter);
+  app.use('/api/orders', ordersRouter);
+  app.use('/api/shipments', shipmentsRouter);
   app.use('/api/dashboard', dashboardRouter);
+  app.use('/api/alerts', alertsRouter);
   app.use('/api/status', statusRouter);
+  app.use('/api/users', userRouter);
+  app.use('/api/settings', settingsRouter);
+  app.use('/api/events', eventsRouter);
 
   // 404 and error handling
   app.use(notFoundHandler);

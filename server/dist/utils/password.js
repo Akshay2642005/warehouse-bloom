@@ -6,12 +6,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.hashPassword = hashPassword;
 exports.comparePassword = comparePassword;
 const bcrypt_1 = __importDefault(require("bcrypt"));
+const config_1 = require("./config");
 /**
  * Hashes a plaintext password using bcrypt.
  */
 async function hashPassword(plain) {
     // In real usage, configure salt rounds via env
-    const rounds = 10;
+    const rounds = config_1.config.BCRYPT_ROUNDS || 5;
     return bcrypt_1.default.hash(plain, rounds);
 }
 /**

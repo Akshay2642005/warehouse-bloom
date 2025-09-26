@@ -4,6 +4,7 @@ import { registerSchema, loginSchema } from '../validation/auth.schema';
 import { hashPassword } from '../utils/password';
 import { signToken } from '../utils/jwt';
 import { createResponse } from '../utils/apiResponse';
+import { User } from '@prisma/client';
 
 /**
  * Registers a new user.

@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
-import { 
-  Package, 
-  BarChart3, 
-  ShoppingCart, 
-  Users, 
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import {
+  Package,
+  BarChart3,
+  ShoppingCart,
+  Users,
   Settings,
   Truck,
   AlertTriangle,
@@ -25,6 +25,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useUser } from "@/contexts/UserContext";
 
 const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: BarChart3 },
@@ -43,12 +44,17 @@ export function AppSidebar() {
   const location = useLocation();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
+  const navigate = useNavigate();
+  const { user } = useUser();
 
   const isActive = (path: string) => currentPath === path;
   const getNavClasses = ({ isActive }: { isActive: boolean }) =>
-    isActive 
-      ? "bg-primary-blue text-white font-medium hover:bg-primary-blue-dark" 
+    isActive
+      ? "bg-primary-blue text-white font-medium hover:bg-primary-blue-dark"
       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground";
+
+  const initials = (user?.email || 'U').slice(0, 2).toUpperCase();
+  const displayName = (user as any)?.name || user?.email || 'User';
 
   return (
     <Sidebar
@@ -80,10 +86,10 @@ export function AppSidebar() {
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url} 
-                      end 
-                      className={({ isActive }) => 
+                    <NavLink
+                      to={item.url}
+                      end
+                      className={({ isActive }) =>
                         `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${getNavClasses({ isActive })}`
                       }
                     >
@@ -100,15 +106,17 @@ export function AppSidebar() {
         {/* User Profile Section */}
         {!collapsed && (
           <div className="mt-auto p-6 border-t">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-primary-blue flex items-center justify-center text-white font-medium">
-                JD
+            <button className="w-full" onClick={() => navigate('/profile')}>
+              <div className="flex items-center gap-3 text-left">
+                <div className="h-10 w-10 rounded-full bg-primary-blue flex items-center justify-center text-white font-medium">
+                  {initials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">John Doe</p>
-                <p className="text-xs text-muted-foreground truncate">Warehouse Manager</p>
-              </div>
-            </div>
+            </button>
           </div>
         )}
       </SidebarContent>

@@ -21,6 +21,7 @@ import SettingsPage from "./pages/Settings";
 import SystemStatus from "./pages/SystemStatus";
 import NotFound from "./pages/NotFound";
 import { Layout } from "./components/Layout";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,6 +57,7 @@ function AppRoutes() {
       <Route path="/alerts" element={user ? <Layout><Alerts /></Layout> : <Navigate to="/login" replace />} />
       <Route path="/staff" element={user ? <Layout><Staff /></Layout> : <Navigate to="/login" replace />} />
       <Route path="/settings" element={user ? <Layout><SettingsPage /></Layout> : <Navigate to="/login" replace />} />
+      <Route path="/profile" element={user ? <Layout><Profile /></Layout> : <Navigate to="/login" replace />} />
       <Route path="/status" element={user ? <Layout><SystemStatus /></Layout> : <Navigate to="/login" replace />} />
 
       <Route path="*" element={<NotFound />} />
