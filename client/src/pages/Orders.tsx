@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Eye, Package, Truck } from "lucide-react";
 import { fetchOrders } from '@/api/orders';
+import { OrderTable } from '@/components/OrderTable';
 
 export default function Orders() {
   const { data, isLoading } = useQuery({
@@ -90,45 +91,7 @@ export default function Orders() {
       </div>
 
       {/* Orders Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Orders</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="text-center py-8">Loading orders...</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Order #</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Items</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Total</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.map((order) => (
-                    <tr key={order.id} className="border-b hover:bg-muted/50 transition-colors">
-                      <td className="py-4 px-4 font-mono text-sm">{order.orderNumber}</td>
-                      <td className="py-4 px-4">{order.items.reduce((sum, i) => sum + i.quantity, 0)}</td>
-                      <td className="py-4 px-4 font-medium">${(order.totalCents / 100).toFixed(2)}</td>
-                      <td className="py-4 px-4">{getStatusBadge(order.status)}</td>
-                      <td className="py-4 px-4">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <OrderTable />
     </div>
   );
 }
