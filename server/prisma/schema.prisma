@@ -37,6 +37,13 @@ model Item {
   alerts      Alert[]
   owner       User?       @relation(fields: [ownerId], references: [id])
   orderItems  OrderItem[]
+
+  @@index([name])
+  @@index([sku])
+  @@index([quantity])
+  @@index([ownerId])
+  @@index([updatedAt])
+  @@index([name, sku, description])
 }
 
 model Order {

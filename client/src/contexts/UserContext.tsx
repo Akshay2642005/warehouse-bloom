@@ -6,6 +6,7 @@ import {
   ReactNode,
   useEffect,
 } from "react";
+import { useQueryClient } from '@tanstack/react-query';
 import { getCurrentUser } from "../api/auth";
 import type { User } from "@/types";
 
@@ -52,12 +53,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       .finally(() => setLoading(false));
   }, []);
 
+  const queryClient = useQueryClient();
+
   const updateUser = (userData: User | null) => {
     setUser(userData);
     if (userData) {
       localStorage.setItem('user', JSON.stringify(userData));
     } else {
       localStorage.removeItem('user');
+      // Clear all cached data on logout
+      queryClient.clear();
     }
   };
 

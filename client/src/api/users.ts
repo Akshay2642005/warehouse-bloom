@@ -1,72 +1,42 @@
 import { axiosInstance } from './axiosInstance';
-import type { ApiResponse, User, UserProfile, UserStats, UpdateUserData, UpdatePasswordData, TwoFactorSetup } from '@/types';
 
-export type { UserProfile, UserStats, UpdateUserData, UpdatePasswordData };
-
-/**
- * Get all users (admin only)
- */
-export async function fetchUsers(): Promise<UserProfile[]> {
-  const response = await axiosInstance.get<ApiResponse<{ users: UserProfile[] }>>('/users');
-  return response.data.data!.users;
+export interface User {
+  id: string;
+  email: string;
+  role: string;
+  name?: string;
+  avatarUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+  twoFactorEnabled: boolean;
 }
 
-/**
- * Get user by ID
- */
-export async function fetchUserById(id: string): Promise<UserProfile> {
-  const response = await axiosInstance.get<ApiResponse<{ user: UserProfile }>>(`/users/${id}`);
-  return response.data.data!.user;
+export async function fetchUsers(): Promise<User[]> {
+  const response = await axiosInstance.get('/users');
+  return response.data.data.users;
 }
 
-/**
- * Update user profile
- */
-export async function updateUserProfile(id: string, data: UpdateUserData): Promise<User> {
-  const response = await axiosInstance.put<ApiResponse<{ user: User }>>(`/users/${id}`, data);
-  return response.data.data!.user;
+export async function updateUserPassword(data: { currentPassword: string; newPassword: string }) {
+  const response = await axiosInstance.put('/user/password', data);
+  return response.data;
 }
 
-/**
- * Update user password
- */
-export async function updateUserPassword(id: string, data: UpdatePasswordData): Promise<void> {
-  await axiosInstance.put(`/users/${id}/password`, data);
+export async function updateUserProfile(data: { name?: string; email?: string }) {
+  const response = await axiosInstance.put('/user/profile', data);
+  return response.data;
 }
 
-/**
- * Setup two-factor authentication
- */
-export async function setupTwoFactor(id: string): Promise<TwoFactorSetup> {
-  const response = await axiosInstance.post<ApiResponse<TwoFactorSetup>>(`/users/${id}/2fa/setup`);
-  return response.data.data!;
+export async function setupTwoFactor() {
+  const response = await axiosInstance.post('/user/2fa/setup');
+  return response.data.data;
 }
 
-/**
- * Verify two-factor authentication
- */
-export async function verifyTwoFactor(id: string, token: string): Promise<void> {
-  await axiosInstance.post(`/users/${id}/2fa/verify`, { token });
+export async function verifyTwoFactor(token: string) {
+  const response = await axiosInstance.post('/user/2fa/verify', { token });
+  return response.data;
 }
 
-/**
- * Disable two-factor authentication
- */
-export async function disableTwoFactor(id: string): Promise<void> {
-  await axiosInstance.delete(`/users/${id}/2fa`);
-}
-
-/**
- * Delete user (admin only)
- */
-export async function deleteUser(id: string): Promise<void> {
-  await axiosInstance.delete(`/users/${id}`);
-}
-
-/**
- * Get user statistics (admin only)
- */
-export async function fetchUserStats(): Promise<UserStats> {
-  const response = await axiosInstance.get<ApiResponse<UserStats>>('/users/stats');
-  return response.data.data!;
+export async function disableTwoFactor(userId: string) {
+  const response = await axiosInstance.delete(`/user/2fa/disable`);
+  return response.data;
 }

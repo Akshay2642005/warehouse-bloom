@@ -17,7 +17,7 @@ class ConnectionPool {
       max: 100, // Maximum connections for high load
       idleTimeoutMillis: 30000, // Close idle connections after 30s
       connectionTimeoutMillis: 10000, // Timeout after 10s
-      acquireTimeoutMillis: 60000, // Wait up to 60s for connection
+      // acquireTimeoutMillis: 60000, // Not available in this version
       
       // Performance optimizations
       statement_timeout: 30000, // 30s query timeout
@@ -91,7 +91,7 @@ class ConnectionPool {
       return result;
     } catch (error) {
       logger.error('Database query error', { 
-        error: error.message, 
+        error: (error as Error).message, 
         query: text.substring(0, 100),
         params: params?.length 
       });

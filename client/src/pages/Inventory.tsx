@@ -3,30 +3,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, Search, Filter, Plus, X } from "lucide-react";
+import { SearchInput } from "@/components/SearchInput";
+import { Package, Filter, Plus, X } from "lucide-react";
 import { InventoryTable } from '@/components/InventoryTable';
 import { ItemDialog } from '@/components/ItemDialog';
+import { useInstantSearch } from '@/hooks/useInstantSearch';
 
 
 
 export default function Inventory() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const { searchTerm, setSearchTerm, debouncedTerm, clearSearch, isSearching } = useInstantSearch({
+    debounceMs: 300,
+    minSearchLength: 0
+  });
   
-  // Debounce search like Google/Amazon - 300ms delay
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("name");
   const [showFilters, setShowFilters] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
 
   const clearFilters = () => {
-    setSearchTerm("");
+    clearSearch();
     setStatusFilter("all");
     setSortBy("name");
   };
@@ -52,15 +49,14 @@ export default function Inventory() {
         <CardContent className="p-6">
           <div className="space-y-4">
             <div className="flex gap-4 items-center">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name, SKU, or description..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+              <SearchInput
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder="Search by name, SKU, or description..."
+                isSearching={isSearching}
+                onClear={clearSearch}
+                className="flex-1"
+              />
               <Button 
                 variant="outline" 
                 onClick={() => setShowFilters(!showFilters)}
@@ -124,7 +120,7 @@ export default function Inventory() {
 
       {/* Inventory Table */}
       <InventoryTable 
-        searchTerm={debouncedSearch}
+        searchTerm={debouncedTerm}
         statusFilter={statusFilter}
         sortBy={sortBy}
       />

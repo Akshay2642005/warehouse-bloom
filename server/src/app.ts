@@ -20,6 +20,9 @@ import { ordersRouter } from './routes/orders.routes';
 import { alertsRouter } from './routes/alerts.routes';
 import { settingsRouter } from './routes/settings.routes';
 import { shipmentsRouter } from './routes/shipments.routes';
+import { systemRouter } from './routes/system.routes';
+import { usersRouter } from './routes/users.routes';
+import { searchRouter } from './routes/search.routes';
 
 /**
  * Creates and configures the Express application.
@@ -91,9 +94,12 @@ export function createApp(): Application {
   app.use('/api/dashboard', dashboardRouter);
   app.use('/api/alerts', alertsRouter);
   app.use('/api/status', statusRouter);
-  app.use('/api/users', userRouter);
+  app.use('/api/user', userRouter);
+  app.use('/api/users', usersRouter);
+  app.use('/api/system', systemRouter);
   app.use('/api/settings', settingsRouter);
   app.use('/api/events', eventsRouter);
+  app.use('/api/search', rateLimiters.search, searchRouter);
 
   // 404 and error handling
   app.use(notFoundHandler);

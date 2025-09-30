@@ -3,11 +3,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Truck, MapPin, Clock, Package } from "lucide-react";
 import { ShipmentTable } from '@/components/ShipmentTable';
+import { ShipmentDialog } from '@/components/ShipmentDialog';
+import { useState } from 'react';
 
 
 
 export default function Shipping() {
-
+  const [showDialog, setShowDialog] = useState(false);
+  const [selectedShipment, setSelectedShipment] = useState(null);
 
   return (
     <div className="space-y-6">
@@ -17,7 +20,7 @@ export default function Shipping() {
           <h1 className="text-3xl font-bold text-foreground">Shipping & Logistics</h1>
           <p className="text-muted-foreground">Track shipments and manage delivery logistics.</p>
         </div>
-        <Button className="bg-primary-blue hover:bg-primary-blue-dark">
+        <Button className="bg-primary-blue hover:bg-primary-blue-dark" onClick={() => { setSelectedShipment(null); setShowDialog(true); }}>
           <Truck className="h-4 w-4 mr-2" />
           Create Shipment
         </Button>
@@ -73,6 +76,17 @@ export default function Shipping() {
 
       {/* Shipments Table */}
       <ShipmentTable />
+      
+      {/* Shipment Dialog */}
+      <ShipmentDialog 
+        open={showDialog} 
+        onOpenChange={setShowDialog}
+        shipment={selectedShipment}
+        onSuccess={() => {
+          setShowDialog(false);
+          setSelectedShipment(null);
+        }}
+      />
     </div>
   );
 }

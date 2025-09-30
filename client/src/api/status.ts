@@ -1,27 +1,21 @@
 import { axiosInstance } from './axiosInstance';
-import { ApiResponse } from './auth';
 
 export interface SystemStatus {
-  status: 'healthy' | 'unhealthy';
-  timestamp: string;
+  status: 'healthy' | 'degraded' | 'down';
   uptime: number;
-  version: string;
+  responseTime: string;
   environment: string;
+  version: string;
   services: {
     database: {
-      status: string;
+      status: 'connected' | 'disconnected';
       latency: string;
     };
     redis: {
-      status: string;
+      status: 'connected' | 'disconnected';
       latency: string;
     };
   };
-  stats: {
-    totalUsers: number;
-    totalItems: number;
-  };
-  responseTime: string;
 }
 
 export interface SystemMetrics {
@@ -33,7 +27,6 @@ export interface SystemMetrics {
     memory: {
       used: string;
       total: string;
-      external: string;
     };
   };
   database: {
@@ -45,25 +38,17 @@ export interface SystemMetrics {
       total: number;
       totalQuantity: number;
       totalValue: number;
-      averageQuantity: number;
-      averagePrice: number;
       lowStockItems: number;
     };
   };
 }
 
-/**
- * Get system status and health check
- */
 export async function fetchSystemStatus(): Promise<SystemStatus> {
-  const response = await axiosInstance.get<ApiResponse<SystemStatus>>('/status');
-  return response.data.data!;
+  const response = await axiosInstance.get('/system/status');
+  return response.data.data;
 }
 
-/**
- * Get detailed system metrics (requires authentication)
- */
 export async function fetchSystemMetrics(): Promise<SystemMetrics> {
-  const response = await axiosInstance.get<ApiResponse<SystemMetrics>>('/status/metrics');
-  return response.data.data!;
+  const response = await axiosInstance.get('/system/metrics');
+  return response.data.data;
 }

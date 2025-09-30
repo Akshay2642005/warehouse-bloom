@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Package, Edit, Eye, Loader2, Plus, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchItems, deleteItemByIdApi } from '@/api/items';
+import { searchApi } from '@/api/search';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { ItemDialog } from './ItemDialog';
 import { useToast } from '@/hooks/use-toast';
@@ -28,19 +29,17 @@ export function InventoryTable({ searchTerm = '', statusFilter = 'all', sortBy =
     setPage(1);
   }, [searchTerm, statusFilter, sortBy]);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, isFetching } = useQuery({
     queryKey: ['items', page, searchTerm, statusFilter, sortBy],
-    queryFn: () => fetchItems({ 
-      page, 
-      pageSize: 20,
+    queryFn: () => fetchItems({
+      page,
+      pageSize: 50,
       q: searchTerm || undefined,
       status: statusFilter !== 'all' ? statusFilter : undefined,
       sortBy: sortBy !== 'name' ? sortBy : undefined
     }),
+    retry: 1,
     staleTime: 30000,
-    gcTime: 300000,
-    refetchOnWindowFocus: false,
-    enabled: true, // Always enabled, debouncing handled at parent level
   });
 
   const deleteMutation = useMutation({
@@ -55,7 +54,7 @@ export function InventoryTable({ searchTerm = '', statusFilter = 'all', sortBy =
   });
 
   // Use server-side filtered data directly (no client-side filtering for performance)
-  const items = data?.items || [];
+  const items = data?.data?.items || data?.items || [];
 
   const getStatusBadge = useCallback((stock: number) => {
     const reorderLevel = 10;
@@ -72,7 +71,7 @@ export function InventoryTable({ searchTerm = '', statusFilter = 'all', sortBy =
     return `$${(priceCents / 100).toFixed(2)}`;
   }, []);
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-8">
@@ -95,7 +94,10 @@ export function InventoryTable({ searchTerm = '', statusFilter = 'all', sortBy =
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-lg font-semibold">Inventory Management</CardTitle>
+        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+          Inventory Management
+          {isFetching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+        </CardTitle>
         <Button size="sm" onClick={() => setShowDialog(true)} className="bg-yellow-500 hover:bg-yellow-600 text-black">
           <Plus className="h-4 w-4 mr-2" />
           Add Product
@@ -174,7 +176,7 @@ export function InventoryTable({ searchTerm = '', statusFilter = 'all', sortBy =
           </table>
         </div>
         
-        {data && data.totalPages > 1 && items.length > 0 && (
+        {data && (data.data?.totalPages || data.totalPages) > 1 && items.length > 0 && (
           <div className="flex justify-center mt-4 gap-2">
             <Button 
               variant="outline" 
@@ -185,12 +187,12 @@ export function InventoryTable({ searchTerm = '', statusFilter = 'all', sortBy =
               Previous
             </Button>
             <span className="flex items-center px-3 text-sm">
-              Page {page} of {data.totalPages}
+              Page {page} of {data.data?.totalPages || data.totalPages}
             </span>
             <Button 
               variant="outline" 
               size="sm" 
-              disabled={page === data.totalPages}
+              disabled={page === (data.data?.totalPages || data.totalPages)}
               onClick={() => setPage(p => p + 1)}
             >
               Next

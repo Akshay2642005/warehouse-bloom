@@ -14,7 +14,9 @@ export function OrderTable() {
   
   const { data, isLoading, error } = useQuery({
     queryKey: ['orders', page],
-    queryFn: () => fetchOrders({ page, pageSize: 10 })
+    queryFn: () => fetchOrders({ page, pageSize: 50 }),
+    staleTime: 0,
+    refetchOnWindowFocus: true
   });
 
   const getStatusBadge = (status: string) => {
@@ -27,6 +29,8 @@ export function OrderTable() {
         return <Badge variant="outline" className="border-success text-success bg-success/10">Delivered</Badge>;
       case "PENDING":
         return <Badge variant="outline" className="border-destructive text-destructive bg-destructive/10">Pending</Badge>;
+      case "CANCELLED":
+        return <Badge variant="outline" className="border-muted text-muted bg-muted/10">Cancelled</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -52,14 +56,12 @@ export function OrderTable() {
     );
   }
 
+  const orders = data?.data?.orders || data?.orders || [];
+
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader>
         <CardTitle className="text-lg font-semibold">Order Management</CardTitle>
-        <Button size="sm" onClick={() => setShowDialog(true)}>
-          <ShoppingCart className="h-4 w-4 mr-2" />
-          New Order
-        </Button>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
@@ -75,7 +77,7 @@ export function OrderTable() {
               </tr>
             </thead>
             <tbody>
-              {data?.orders.map((order) => (
+              {orders.map((order) => (
                 <tr key={order.id} className="border-b hover:bg-muted/50 transition-colors">
                   <td className="py-4 px-4 font-mono text-sm">{order.orderNumber}</td>
                   <td className="py-4 px-4">{order.items?.reduce((sum, i) => sum + i.quantity, 0) || 0}</td>
@@ -84,7 +86,7 @@ export function OrderTable() {
                   <td className="py-4 px-4 text-muted-foreground">{new Date(order.createdAt).toLocaleDateString()}</td>
                   <td className="py-4 px-4">
                     <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => setSelectedOrder(order)}>
+                      <Button variant="ghost" size="sm">
                         <Eye className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => { setSelectedOrder(order); setShowDialog(true); }}>
@@ -98,7 +100,7 @@ export function OrderTable() {
           </table>
         </div>
         
-        {data && data.totalPages > 1 && (
+        {data && (data.data?.totalPages || data.totalPages) > 1 && (
           <div className="flex justify-center mt-4 gap-2">
             <Button 
               variant="outline" 
@@ -109,16 +111,23 @@ export function OrderTable() {
               Previous
             </Button>
             <span className="flex items-center px-3 text-sm">
-              Page {page} of {data.totalPages}
+              Page {page} of {data.data?.totalPages || data.totalPages}
             </span>
             <Button 
               variant="outline" 
               size="sm" 
-              disabled={page === data.totalPages}
+              disabled={page === (data.data?.totalPages || data.totalPages)}
               onClick={() => setPage(p => p + 1)}
             >
               Next
             </Button>
+          </div>
+        )}
+        
+        {orders.length === 0 && (
+          <div className="text-center py-8 text-muted-foreground">
+            <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>No orders found.</p>
           </div>
         )}
       </CardContent>

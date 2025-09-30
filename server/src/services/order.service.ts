@@ -16,20 +16,41 @@ export interface CreateOrderInput {
 export class OrdersService {
   static async listOrders(params: { page: number; pageSize: number; search?: string; status?: string }) {
     const { page, pageSize, search, status } = params;
+    const skip = (page - 1) * pageSize;
+
+    const where: any = {};
     
-    const result = await SearchService.searchOrders({
-      query: search,
-      page,
-      pageSize,
-      filters: { status }
-    });
+    if (search) {
+      where.OR = [
+        { orderNumber: { contains: search, mode: 'insensitive' } },
+        { user: { email: { contains: search, mode: 'insensitive' } } }
+      ];
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where,
+        skip,
+        take: pageSize,
+        include: {
+          user: { select: { id: true, email: true } },
+          items: { include: { item: { select: { id: true, name: true, sku: true } } } }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.order.count({ where })
+    ]);
 
     return {
-      orders: result.items,
-      page: result.page,
-      pageSize: result.pageSize,
-      total: result.total,
-      totalPages: result.totalPages,
+      orders,
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
     };
   }
 

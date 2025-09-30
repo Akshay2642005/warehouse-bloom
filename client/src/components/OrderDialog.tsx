@@ -5,56 +5,64 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { createOrderApi, updateOrderStatusApi } from '@/api/orders';
+import { createOrderApi } from '@/api/orders';
 import { fetchItems } from '@/api/items';
 import { toast } from "sonner";
-import type { Order, OrderStatus, CreateOrderItem } from '@/types';
 
 interface OrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  order?: Order | null;
+  order?: any | null;
   onSuccess: () => void;
 }
 
 export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialogProps) {
   const [items, setItems] = useState([{ itemId: '', quantity: 1 }]);
-  const [status, setStatus] = useState<OrderStatus>('PENDING');
-  
+  const [status, setStatus] = useState('PENDING');
   const queryClient = useQueryClient();
   
   const { data: availableItems } = useQuery({
-    queryKey: ['items'],
-    queryFn: () => fetchItems({ pageSize: 100 })
+    queryKey: ['items', 'for-orders'],
+    queryFn: () => fetchItems({ pageSize: 100 }),
+    staleTime: 0
   });
 
   const createMutation = useMutation({
     mutationFn: createOrderApi,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['shipments'] });
       toast.success('Order created successfully');
+      resetForm();
       onSuccess();
     },
     onError: () => toast.error('Failed to create order')
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: OrderStatus }) => 
-      updateOrderStatusApi(id, status),
+    mutationFn: ({ id, status }: { id: string; status: string }) => 
+      import('@/api/orders').then(api => api.updateOrderStatusApi(id, status as any)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders-stats'] });
       toast.success('Order updated successfully');
       onSuccess();
     },
     onError: () => toast.error('Failed to update order')
   });
 
+  const resetForm = () => {
+    setItems([{ itemId: '', quantity: 1 }]);
+    setStatus('PENDING');
+  };
+
   useEffect(() => {
     if (order) {
-      setStatus(order.status);
+      setItems(order.items?.map((item: any) => ({ itemId: item.itemId, quantity: item.quantity })) || [{ itemId: '', quantity: 1 }]);
+      setStatus(order.status || 'PENDING');
     } else {
-      setItems([{ itemId: '', quantity: 1 }]);
-      setStatus('PENDING');
+      resetForm();
     }
   }, [order]);
 
@@ -95,15 +103,11 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          {order ? (
-            <div className="space-y-4">
-              <div>
-                <Label>Order Number</Label>
-                <Input value={order.orderNumber} disabled />
-              </div>
+          <div className="space-y-4">
+            {order ? (
               <div>
                 <Label>Status</Label>
-                <Select value={status} onValueChange={(value) => setStatus(value as OrderStatus)}>
+                <Select value={status} onValueChange={setStatus}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -116,51 +120,51 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <Label>Order Items</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                  Add Item
-                </Button>
-              </div>
-              
-              {items.map((item, index) => (
-                <div key={index} className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <Label>Item</Label>
-                    <Select value={item.itemId} onValueChange={(value) => updateItem(index, 'itemId', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select item" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableItems?.items.map((availableItem) => (
-                          <SelectItem key={availableItem.id} value={availableItem.id}>
-                            {availableItem.name} ({availableItem.sku})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="w-24">
-                    <Label>Quantity</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                    />
-                  </div>
-                  {items.length > 1 && (
-                    <Button type="button" variant="outline" size="sm" onClick={() => removeItem(index)}>
-                      Remove
-                    </Button>
-                  )}
+            ) : (
+              <>
+                <div className="flex justify-between items-center">
+                  <Label>Order Items</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                    Add Item
+                  </Button>
                 </div>
-              ))}
-            </div>
-          )}
+            
+                {items.map((item, index) => (
+                  <div key={index} className="flex gap-2 items-end">
+                    <div className="flex-1">
+                      <Label>Item</Label>
+                      <Select value={item.itemId} onValueChange={(value) => updateItem(index, 'itemId', value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select item" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(availableItems?.data?.items || availableItems?.items || []).map((availableItem) => (
+                            <SelectItem key={availableItem.id} value={availableItem.id}>
+                              {availableItem.name} ({availableItem.sku})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="w-24">
+                      <Label>Quantity</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                      />
+                    </div>
+                    {items.length > 1 && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => removeItem(index)}>
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
           
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
