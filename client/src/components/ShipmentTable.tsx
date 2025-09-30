@@ -26,6 +26,8 @@ export function ShipmentTable() {
         return <Badge variant="outline" className="border-success text-success bg-success/10">Delivered</Badge>;
       case "Delayed":
         return <Badge variant="outline" className="border-destructive text-destructive bg-destructive/10">Delayed</Badge>;
+      case "Cancelled":
+        return <Badge variant="outline" className="border-destructive text-destructive bg-destructive/10">Cancelled</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }

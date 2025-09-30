@@ -50,6 +50,7 @@ export class UserService {
         name: true,
         avatarUrl: true,
         twoFactorEnabled: true,
+        twoFactorSecret: true,
         createdAt: true,
         updatedAt: true,
         _count: {
@@ -114,8 +115,41 @@ export class UserService {
     }
   }
 
-  static async setTwoFactor(id: string, enabled: boolean, secret?: string | null) {
-    return prisma.user.update({ where: { id }, data: { twoFactorEnabled: enabled, twoFactorSecret: secret ?? undefined }, select: { id: true, twoFactorEnabled: true } });
+  /**
+   * Set two-factor authentication status
+   */
+  static async setTwoFactor(id: string, enabled: boolean) {
+    return prisma.user.update({ 
+      where: { id }, 
+      data: { twoFactorEnabled: enabled }, 
+      select: { id: true, twoFactorEnabled: true } 
+    });
+  }
+
+  /**
+   * Update two-factor secret
+   */
+  static async updateTwoFactorSecret(id: string, secret: string | null) {
+    return prisma.user.update({ 
+      where: { id }, 
+      data: { twoFactorSecret: secret },
+      select: { id: true, twoFactorSecret: true }
+    });
+  }
+
+  /**
+   * Get user with secret (for 2FA verification)
+   */
+  static async getUserWithSecret(id: string) {
+    return prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        twoFactorEnabled: true,
+        twoFactorSecret: true
+      }
+    });
   }
 
   /**

@@ -78,7 +78,7 @@ export function OrderTable() {
               {data?.orders.map((order) => (
                 <tr key={order.id} className="border-b hover:bg-muted/50 transition-colors">
                   <td className="py-4 px-4 font-mono text-sm">{order.orderNumber}</td>
-                  <td className="py-4 px-4">{order.items.reduce((sum, i) => sum + i.quantity, 0)}</td>
+                  <td className="py-4 px-4">{order.items?.reduce((sum, i) => sum + i.quantity, 0) || 0}</td>
                   <td className="py-4 px-4 font-medium">${(order.totalCents / 100).toFixed(2)}</td>
                   <td className="py-4 px-4">{getStatusBadge(order.status)}</td>
                   <td className="py-4 px-4 text-muted-foreground">{new Date(order.createdAt).toLocaleDateString()}</td>

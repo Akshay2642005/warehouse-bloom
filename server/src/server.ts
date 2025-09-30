@@ -5,6 +5,7 @@ import { prisma } from './utils/prisma';
 import { logger } from './utils/logger';
 import { connectPgListener, onPgNotification } from './utils/pg';
 import { sendMail } from './utils/mailer';
+import { AlertService } from './services/alert.service';
 
 dotenv.config();
 
@@ -41,6 +42,16 @@ async function bootstrap(): Promise<void> {
         logger.error('Failed to process alert notification', { err });
       }
     });
+
+    // Check for existing low stock items on startup
+    setTimeout(async () => {
+      try {
+        await AlertService.checkAllItemsForLowStock();
+        logger.info('Initial low stock check completed');
+      } catch (error) {
+        logger.error('Failed to check low stock on startup:', error);
+      }
+    }, 5000);
 
     const app = createApp();
     app.listen(PORT, () => {

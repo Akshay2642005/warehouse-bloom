@@ -1,0 +1,147 @@
+version: '3.8'
+
+services:
+  # PostgreSQL with optimized settings for production
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: warehouse_prod
+      POSTGRES_USER: warehouse_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./server/scripts/postgres-prod.conf:/etc/postgresql/postgresql.conf
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    ports:
+      - "5432:5432"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U warehouse_user -d warehouse_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis with persistence and optimized settings
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy allkeys-lru --tcp-keepalive 60
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Application server with multiple replicas
+  app:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      target: production
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://warehouse_user:${POSTGRES_PASSWORD}@postgres:5432/warehouse_prod
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN}
+      PORT: 3001
+    ports:
+      - "3001-3004:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      replicas: 4
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx load balancer
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - app
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+    restart: unless-stopped
+
+  # Client application
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      target: production
+    environment:
+      VITE_API_URL: ${VITE_API_URL}
+    ports:
+      - "3000:80"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

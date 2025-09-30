@@ -8,45 +8,46 @@ datasource db {
 }
 
 model User {
-  id               String   @id @default(cuid())
-  email            String   @unique
+  id               String        @id @default(cuid())
+  email            String        @unique
   password         String
-  role             String   @default("user")
-  name             String?
+  role             String        @default("user")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
   avatarUrl        String?
-  twoFactorEnabled Boolean  @default(false)
+  name             String?
+  twoFactorEnabled Boolean       @default(false)
   twoFactorSecret  String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
   items            Item[]
   orders           Order[]
+  sessions         UserSession[]
 }
 
 model Item {
-  id          String    @id @default(cuid())
+  id          String      @id @default(cuid())
   name        String
-  sku         String    @unique
-  quantity    Int       @default(0)
-  priceCents  Int       @default(0)
+  sku         String      @unique
+  quantity    Int         @default(0)
+  priceCents  Int         @default(0)
   imageUrl    String?
   description String?
   ownerId     String?
-  owner       User?     @relation(fields: [ownerId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
   alerts      Alert[]
+  owner       User?       @relation(fields: [ownerId], references: [id])
+  orderItems  OrderItem[]
 }
 
 model Order {
   id          String      @id @default(cuid())
   orderNumber String      @unique
   userId      String
-  user        User        @relation(fields: [userId], references: [id])
   status      OrderStatus @default(PENDING)
   totalCents  Int         @default(0)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  user        User        @relation(fields: [userId], references: [id])
   items       OrderItem[]
   shipments   Shipment[]
 }
@@ -54,41 +55,55 @@ model Order {
 model OrderItem {
   id         String @id @default(cuid())
   orderId    String
-  order      Order  @relation(fields: [orderId], references: [id])
   itemId     String
-  item       Item   @relation(fields: [itemId], references: [id])
   quantity   Int
   priceCents Int
+  item       Item   @relation(fields: [itemId], references: [id])
+  order      Order  @relation(fields: [orderId], references: [id])
 }
 
 model Shipment {
-  id                String   @id @default(cuid())
+  id                String    @id @default(cuid())
   orderId           String
-  order             Order    @relation(fields: [orderId], references: [id])
   carrier           String
   trackingNumber    String
   destination       String
-  status            String   @default("Processing")
+  status            String    @default("Processing")
   shippedDate       DateTime?
   estimatedDelivery DateTime?
-  createdAt         DateTime @default(now())
+  createdAt         DateTime  @default(now())
+  order             Order     @relation(fields: [orderId], references: [id])
 }
 
 model Alert {
-  id           String     @id @default(cuid())
+  id           String    @id @default(cuid())
   type         AlertType
   message      String
   itemId       String?
-  item         Item?      @relation(fields: [itemId], references: [id])
-  severity     Severity   @default(LOW)
-  acknowledged Boolean    @default(false)
-  createdAt    DateTime   @default(now())
+  severity     Severity  @default(LOW)
+  acknowledged Boolean   @default(false)
+  new          Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  item         Item?     @relation(fields: [itemId], references: [id])
 }
 
 model SystemSetting {
-  key       String  @id
+  key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+model UserSession {
+  id           String   @id @default(cuid())
+  userId       String
+  ipAddress    String
+  userAgent    String
+  lastActivity DateTime @default(now())
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([lastActivity])
 }
 
 enum OrderStatus {
@@ -111,4 +126,4 @@ enum Severity {
   MEDIUM
   HIGH
   CRITICAL
-} 
+}

@@ -1,20 +1,7 @@
 import { axiosInstance } from './axiosInstance';
-import { ApiResponse } from './auth';
-import { Item } from './items';
+import type { ApiResponse, Item, DashboardStats, Alert } from '@/types';
 
-export interface DashboardStats {
-  totalItems: number;
-  lowStockCount: number;
-  totalValue: number;
-}
-
-export interface Alert {
-  id: string;
-  name: string;
-  sku: string;
-  quantity: number;
-  priceCents: number;
-}
+export type { DashboardStats, Alert };
 
 /**
  * Fetches dashboard statistics.

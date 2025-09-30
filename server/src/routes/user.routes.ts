@@ -6,7 +6,9 @@ import {
   updatePassword,
   deleteUser,
   getUserStats,
-  toggleTwoFactor
+  setupTwoFactor,
+  verifyTwoFactor,
+  disableTwoFactor
 } from '../controllers/user.controller';
 import { requireAuth } from '../middlewares/requireAuth';
 import { requireAdmin } from '../middlewares/requireAdmin';
@@ -38,8 +40,12 @@ userRouter.put('/:id', requireAuth, updateUser);
  */
 userRouter.put('/:id/password', requireAuth, updatePassword);
 
-/** Enable/disable two-factor */
-userRouter.put('/:id/twofactor', requireAuth, toggleTwoFactor);
+/**
+ * Two-factor authentication routes
+ */
+userRouter.post('/:id/2fa/setup', requireAuth, setupTwoFactor);
+userRouter.post('/:id/2fa/verify', requireAuth, verifyTwoFactor);
+userRouter.delete('/:id/2fa', requireAuth, disableTwoFactor);
 
 /**
  * Delete user (admin only)

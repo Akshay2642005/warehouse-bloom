@@ -25,6 +25,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@/contexts/UserContext";
 
 const navigationItems = [
@@ -53,8 +54,8 @@ export function AppSidebar() {
       ? "bg-primary-blue text-white font-medium hover:bg-primary-blue-dark"
       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground";
 
-  const initials = (user?.email || 'U').slice(0, 2).toUpperCase();
-  const displayName = (user as any)?.name || user?.email || 'User';
+  const initials = user?.name && user.name.trim() ? user.name.trim().slice(0, 2).toUpperCase() : (user?.email || 'U').slice(0, 2).toUpperCase();
+  const displayName = user?.name || user?.email || 'User';
 
   return (
     <Sidebar
@@ -105,12 +106,15 @@ export function AppSidebar() {
 
         {/* User Profile Section */}
         {!collapsed && (
-          <div className="mt-auto p-6 border-t">
+          <div className="mt-auto p-6 border-t" key={`${user?.id}-${user?.name}-${user?.email}`}>
             <button className="w-full" onClick={() => navigate('/profile')}>
               <div className="flex items-center gap-3 text-left">
-                <div className="h-10 w-10 rounded-full bg-primary-blue flex items-center justify-center text-white font-medium">
-                  {initials}
-                </div>
+                <Avatar className="h-10 w-10">
+                  {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={displayName} />}
+                  <AvatarFallback className="bg-primary-blue text-white font-medium">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
                   <p className="text-xs text-muted-foreground truncate">{user?.email}</p>

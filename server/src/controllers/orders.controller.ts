@@ -1,11 +1,14 @@
 import { Request, Response } from 'express';
 import { OrdersService } from '../services/order.service';
+import { AlertService } from '../services/alert.service';
 import { z } from 'zod';
 
 const listSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(10),
-});
+  pageSize: z.coerce.number().int().min(1).default(10),
+  search: z.string().optional(),
+  status: z.enum(['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED']).optional(),
+}).catchall(z.any());
 
 const createOrderSchema = z.object({
   items: z.array(z.object({ itemId: z.string(), quantity: z.number().int().positive() })).min(1),
@@ -14,8 +17,17 @@ const createOrderSchema = z.object({
 const updateStatusSchema = z.object({ status: z.enum(['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED']) });
 
 export async function listOrders(req: Request, res: Response): Promise<void> {
-  const { page, pageSize } = listSchema.parse(req.query);
-  const result = await OrdersService.listOrders({ page, pageSize });
+  const parsed = listSchema.parse(req.query);
+  const { page, pageSize: rawPageSize, search, status } = parsed;
+  const pageSize = Math.min(rawPageSize, 50);
+  const result = await OrdersService.listOrders({ page, pageSize, search, status });
+  
+  // Set cache headers for immediate updates
+  res.set({
+    'Cache-Control': 'no-cache, must-revalidate', // Force revalidation
+    'ETag': `"orders-${Date.now()}-${JSON.stringify({ page, pageSize, search, status })}"`
+  });
+  
   res.status(200).json({ success: true, data: result });
 }
 
@@ -37,5 +49,9 @@ export async function updateOrderStatus(req: Request, res: Response): Promise<vo
   const { id } = z.object({ id: z.string() }).parse(req.params);
   const { status } = updateStatusSchema.parse(req.body);
   await OrdersService.updateStatus(id, status as any);
+  
+  // Create alert for order status change
+  await AlertService.createOrderAlert(id, status);
+  
   res.status(200).json({ success: true, message: 'Order status updated' });
 } 

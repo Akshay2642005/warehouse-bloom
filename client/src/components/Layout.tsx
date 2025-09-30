@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { RealTimeAlerts } from "@/components/RealTimeAlerts";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { useMutation } from '@tanstack/react-query';
@@ -17,7 +18,7 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { setUser } = useUser(); // access user context
+  const { user, setUser } = useUser(); // access user context
 
   const logoutMutation = useMutation({
     mutationFn: logoutUser,
@@ -44,7 +45,7 @@ export function Layout({ children }: LayoutProps) {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
+        <AppSidebar key={`sidebar-${user?.id}-${user?.name}-${user?.email}`} />
         <div className="flex-1 flex flex-col">
           {/* Header */}
           <header className="h-16 flex items-center justify-between border-b bg-card px-6">
@@ -53,6 +54,7 @@ export function Layout({ children }: LayoutProps) {
               <h2 className="text-lg font-semibold text-foreground">Warehouse Management</h2>
             </div>
             <div className="flex items-center gap-4">
+              <RealTimeAlerts />
               <ThemeToggle />
               <div className="text-sm text-muted-foreground">
                 {new Date().toLocaleDateString('en-US', {

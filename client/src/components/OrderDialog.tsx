@@ -5,20 +5,21 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { createOrderApi, updateOrderStatusApi, OrderDTO } from '@/api/orders';
+import { createOrderApi, updateOrderStatusApi } from '@/api/orders';
 import { fetchItems } from '@/api/items';
 import { toast } from "sonner";
+import type { Order, OrderStatus, CreateOrderItem } from '@/types';
 
 interface OrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  order?: OrderDTO | null;
+  order?: Order | null;
   onSuccess: () => void;
 }
 
 export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialogProps) {
   const [items, setItems] = useState([{ itemId: '', quantity: 1 }]);
-  const [status, setStatus] = useState<OrderDTO['status']>('PENDING');
+  const [status, setStatus] = useState<OrderStatus>('PENDING');
   
   const queryClient = useQueryClient();
   
@@ -38,7 +39,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: OrderDTO['status'] }) => 
+    mutationFn: ({ id, status }: { id: string; status: OrderStatus }) => 
       updateOrderStatusApi(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
@@ -102,7 +103,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
               </div>
               <div>
                 <Label>Status</Label>
-                <Select value={status} onValueChange={(value) => setStatus(value as OrderDTO['status'])}>
+                <Select value={status} onValueChange={(value) => setStatus(value as OrderStatus)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -165,7 +166,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+            <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="bg-yellow-500 hover:bg-yellow-600 text-black">
               {order ? 'Update Order' : 'Create Order'}
             </Button>
           </div>

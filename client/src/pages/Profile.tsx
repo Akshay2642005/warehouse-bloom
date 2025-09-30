@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,41 +6,128 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { User, Mail, Shield, Calendar, Settings, Save, Edit, Image as ImageIcon, KeyRound, User2 } from "lucide-react";
-import { updateUserPassword, updateUserProfile, toggleTwoFactor } from '@/api/users';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { User, Mail, Shield, Settings, Save, Edit, KeyRound, QrCode, Smartphone } from "lucide-react";
+import { updateUserPassword, updateUserProfile, setupTwoFactor, verifyTwoFactor, disableTwoFactor } from '@/api/users';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
+import type { UpdateUserData, UpdatePasswordData, TwoFactorSetup } from '@/types';
 
 export default function Profile() {
-  const { user } = useUser();
+  const { user, setUser, refreshUser } = useUser();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
+  const [show2FADialog, setShow2FADialog] = useState(false);
+  const [twoFactorSetup, setTwoFactorSetup] = useState<TwoFactorSetup | null>(null);
+  const [verificationToken, setVerificationToken] = useState('');
   const [formData, setFormData] = useState({
     email: user?.email || '',
-    name: (user as any)?.name || '',
-    avatarUrl: (user as any)?.avatarUrl || '',
-    twoFactorEnabled: (user as any)?.twoFactorEnabled || false,
+    name: user?.name || '',
+    avatarUrl: user?.avatarUrl || '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
 
-  const handleSave = async () => {
+  // Update form data when user changes
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        email: user.email || '',
+        name: user.name || '',
+        avatarUrl: user.avatarUrl || ''
+      }));
+    }
+  }, [user]);
+
+  const updateProfileMutation = useMutation({
+    mutationFn: (data: UpdateUserData) => updateUserProfile(user!.id, data),
+    onSuccess: async (updatedUser) => {
+      // Refresh user data from server to get the latest state
+      await refreshUser();
+      setIsEditing(false);
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      toast({ title: 'Success', description: 'Profile updated successfully' });
+    },
+    onError: () => toast({ title: 'Error', description: 'Failed to update profile', variant: 'destructive' })
+  });
+
+  const updatePasswordMutation = useMutation({
+    mutationFn: (data: UpdatePasswordData) => updateUserPassword(user!.id, data),
+    onSuccess: () => {
+      setFormData(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
+      toast({ title: 'Success', description: 'Password updated successfully' });
+    },
+    onError: () => toast({ title: 'Error', description: 'Failed to update password', variant: 'destructive' })
+  });
+
+  const setup2FAMutation = useMutation({
+    mutationFn: () => setupTwoFactor(user!.id),
+    onSuccess: (data) => {
+      setTwoFactorSetup(data);
+      setShow2FADialog(true);
+    },
+    onError: () => toast({ title: 'Error', description: 'Failed to setup 2FA', variant: 'destructive' })
+  });
+
+  const verify2FAMutation = useMutation({
+    mutationFn: (token: string) => verifyTwoFactor(user!.id, token),
+    onSuccess: async () => {
+      setUser({ ...user!, twoFactorEnabled: true });
+      setShow2FADialog(false);
+      setTwoFactorSetup(null);
+      setVerificationToken('');
+      await refreshUser();
+      toast({ title: 'Success', description: '2FA enabled successfully' });
+    },
+    onError: () => toast({ title: 'Error', description: 'Invalid verification code', variant: 'destructive' })
+  });
+
+  const disable2FAMutation = useMutation({
+    mutationFn: () => disableTwoFactor(user!.id),
+    onSuccess: async () => {
+      setUser({ ...user!, twoFactorEnabled: false });
+      await refreshUser();
+      toast({ title: 'Success', description: '2FA disabled successfully' });
+    },
+    onError: () => toast({ title: 'Error', description: 'Failed to disable 2FA', variant: 'destructive' })
+  });
+
+  const handleSave = () => {
     if (!user) return;
-    await updateUserProfile(user.id, { email: formData.email, name: formData.name, avatarUrl: formData.avatarUrl });
-    setIsEditing(false);
+    updateProfileMutation.mutate({
+      email: formData.email,
+      name: formData.name,
+      avatarUrl: formData.avatarUrl
+    });
   };
 
-  const handlePasswordChange = async () => {
-    if (!user) return;
-    if (formData.newPassword !== formData.confirmPassword) return;
-    await updateUserPassword(user.id, { currentPassword: formData.currentPassword, newPassword: formData.newPassword });
-    setFormData(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
+  const handlePasswordChange = () => {
+    if (!user || formData.newPassword !== formData.confirmPassword) {
+      toast({ title: 'Error', description: 'Passwords do not match', variant: 'destructive' });
+      return;
+    }
+    updatePasswordMutation.mutate({
+      currentPassword: formData.currentPassword,
+      newPassword: formData.newPassword
+    });
   };
 
-  const handleToggle2FA = async () => {
-    if (!user) return;
-    const next = !formData.twoFactorEnabled;
-    await toggleTwoFactor(user.id, next);
-    setFormData(prev => ({ ...prev, twoFactorEnabled: next }));
+  const handleSetup2FA = () => {
+    if (!user?.twoFactorEnabled) {
+      setup2FAMutation.mutate();
+    } else {
+      disable2FAMutation.mutate();
+    }
+  };
+
+  const handleVerify2FA = () => {
+    if (verificationToken.length === 6) {
+      verify2FAMutation.mutate(verificationToken);
+    }
   };
 
   const getRoleBadge = (role: string) => {
@@ -65,7 +152,20 @@ export default function Profile() {
           <h1 className="text-3xl font-bold text-foreground">User Profile</h1>
           <p className="text-muted-foreground">Manage your account settings and preferences.</p>
         </div>
-        <Button onClick={() => setIsEditing(!isEditing)} variant={isEditing ? "outline" : "default"}>
+        <Button onClick={() => {
+          if (isEditing) {
+            // Reset form data when canceling
+            setFormData({
+              email: user?.email || '',
+              name: user?.name || '',
+              avatarUrl: user?.avatarUrl || '',
+              currentPassword: '',
+              newPassword: '',
+              confirmPassword: ''
+            });
+          }
+          setIsEditing(!isEditing);
+        }} variant={isEditing ? "outline" : "default"}>
           {isEditing ? (<><Save className="h-4 w-4 mr-2" />Cancel</>) : (<><Edit className="h-4 w-4 mr-2" />Edit Profile</>)}
         </Button>
       </div>
@@ -79,6 +179,7 @@ export default function Profile() {
           <CardContent className="space-y-6">
             <div className="flex flex-col items-center text-center">
               <Avatar className="h-20 w-20 mb-4">
+                {formData.avatarUrl && <AvatarImage src={formData.avatarUrl} alt={formData.name || user?.email} />}
                 <AvatarFallback className="text-lg font-semibold">
                   {user ? getInitials(user.email) : 'U'}
                 </AvatarFallback>
@@ -105,8 +206,8 @@ export default function Profile() {
               <div className="flex items-center gap-3">
                 <Shield className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm font-medium">Two-Factor</p>
-                  <p className="text-sm text-muted-foreground">{formData.twoFactorEnabled ? 'Enabled' : 'Disabled'}</p>
+                  <p className="text-sm font-medium">Two-Factor Auth</p>
+                  <p className="text-sm text-muted-foreground">{user?.twoFactorEnabled ? 'Enabled' : 'Disabled'}</p>
                 </div>
               </div>
             </div>
@@ -154,8 +255,24 @@ export default function Profile() {
                 </div>
               )}
               <div className="flex gap-3">
-                <Button onClick={handlePasswordChange} variant="outline" className="flex-1"><KeyRound className="h-4 w-4 mr-2" />Update Password</Button>
-                <Button onClick={handleToggle2FA} variant="outline" className="flex-1"><Shield className="h-4 w-4 mr-2" />{formData.twoFactorEnabled ? 'Disable 2FA' : 'Enable 2FA'}</Button>
+                <Button 
+                  onClick={handlePasswordChange} 
+                  variant="outline" 
+                  className="flex-1"
+                  disabled={!formData.currentPassword || !formData.newPassword || updatePasswordMutation.isPending}
+                >
+                  <KeyRound className="h-4 w-4 mr-2" />
+                  Update Password
+                </Button>
+                <Button 
+                  onClick={handleSetup2FA} 
+                  variant="outline" 
+                  className="flex-1"
+                  disabled={setup2FAMutation.isPending || disable2FAMutation.isPending}
+                >
+                  <Shield className="h-4 w-4 mr-2" />
+                  {user?.twoFactorEnabled ? 'Disable 2FA' : 'Setup 2FA'}
+                </Button>
               </div>
             </div>
 
@@ -163,8 +280,25 @@ export default function Profile() {
               <>
                 <Separator />
                 <div className="flex gap-3">
-                  <Button onClick={handleSave} className="flex-1"><Save className="h-4 w-4 mr-2" />Save Changes</Button>
-                  <Button variant="outline" onClick={() => setIsEditing(false)} className="flex-1">Cancel</Button>
+                  <Button 
+                  onClick={handleSave} 
+                  className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black"
+                  disabled={updateProfileMutation.isPending}
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {updateProfileMutation.isPending ? 'Saving...' : 'Save Changes'}
+                </Button>
+                  <Button variant="outline" onClick={() => {
+                    setFormData({
+                      email: user?.email || '',
+                      name: user?.name || '',
+                      avatarUrl: user?.avatarUrl || '',
+                      currentPassword: '',
+                      newPassword: '',
+                      confirmPassword: ''
+                    });
+                    setIsEditing(false);
+                  }} className="flex-1">Cancel</Button>
                 </div>
               </>
             )}
@@ -184,6 +318,57 @@ export default function Profile() {
           </div>
         </CardContent>
       </Card>
+
+      {/* 2FA Setup Dialog */}
+      <Dialog open={show2FADialog} onOpenChange={setShow2FADialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Smartphone className="h-5 w-5" />
+              Setup Two-Factor Authentication
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {twoFactorSetup && (
+              <>
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
+                  </p>
+                  <div className="flex justify-center mb-4">
+                    <img src={twoFactorSetup.qrCode} alt="2FA QR Code" className="border rounded" />
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Or enter this secret manually: <code className="bg-muted px-1 rounded">{twoFactorSetup.secret}</code>
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="token">Enter verification code</Label>
+                  <Input
+                    id="token"
+                    placeholder="000000"
+                    value={verificationToken}
+                    onChange={(e) => setVerificationToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    maxLength={6}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleVerify2FA}
+                    disabled={verificationToken.length !== 6 || verify2FAMutation.isPending}
+                    className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black"
+                  >
+                    {verify2FAMutation.isPending ? 'Verifying...' : 'Verify & Enable'}
+                  </Button>
+                  <Button variant="outline" onClick={() => setShow2FADialog(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

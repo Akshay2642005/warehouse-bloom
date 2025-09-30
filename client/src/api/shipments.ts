@@ -1,32 +1,14 @@
 import { axiosInstance } from './axiosInstance';
-import { ApiResponse } from './auth';
+import type { ApiResponse, Shipment, CreateShipmentData, PaginatedResponse, QueryParams } from '@/types';
 
-export interface Shipment {
-  id: string;
-  orderId: string;
-  carrier: string;
-  trackingNumber: string;
-  destination: string;
-  status: string;
-  shippedDate?: string;
-  estimatedDelivery?: string;
-  createdAt: string;
-  order?: {
-    id: string;
-    orderNumber: string;
+export type { Shipment, CreateShipmentData };
+
+export async function fetchShipments(params?: { page?: number; pageSize?: number }): Promise<PaginatedResponse<Shipment>> {
+  const cleanParams = {
+    page: params?.page || 1,
+    pageSize: params?.pageSize || 10
   };
-}
-
-export interface CreateShipmentData {
-  orderId: string;
-  carrier: string;
-  trackingNumber: string;
-  destination: string;
-  estimatedDelivery?: string;
-}
-
-export async function fetchShipments(): Promise<{ shipments: Shipment[] }> {
-  const response = await axiosInstance.get<ApiResponse<{ shipments: Shipment[] }>>('/shipments');
+  const response = await axiosInstance.get<ApiResponse<PaginatedResponse<Shipment>>>('/shipments', { params: cleanParams });
   return response.data.data!;
 }
 
@@ -35,6 +17,6 @@ export async function createShipmentApi(data: CreateShipmentData): Promise<Shipm
   return response.data.data!.shipment;
 }
 
-export async function updateShipmentStatusApi(id: string, status: string): Promise<void> {
+export async function updateShipmentStatusApi(id: string, status: Shipment['status']): Promise<void> {
   await axiosInstance.put(`/shipments/${id}/status`, { status });
 }
