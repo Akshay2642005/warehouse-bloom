@@ -27,6 +27,14 @@ export async function loginUser(
 }
 
 /**
+ * Verify MFA token during login
+ */
+export async function verifyMFALogin(email: string, token: string): Promise<{ user: User; token: string }> {
+  const response = await axiosInstance.post<ApiResponse<{ user: User; token: string }>>("/auth/verify-mfa", { email, token });
+  return response.data.data!;
+}
+
+/**
  * Logs out the current user.
  */
 export async function logoutUser(): Promise<void> {

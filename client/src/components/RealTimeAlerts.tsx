@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Bell, X, AlertTriangle, Info, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,44 +24,56 @@ export function RealTimeAlerts() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [showAlerts, setShowAlerts] = useState(false);
   const { toast } = useToast();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { data: alertsData, refetch } = useQuery({
-    queryKey: ['alerts'],
+    queryKey: ['realtime-alerts'],
     queryFn: async () => {
       const response = await axiosInstance.get('/alerts?acknowledged=false');
       return response.data.data?.alerts || [];
     },
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 30000,
+    staleTime: 0,
   });
 
   useEffect(() => {
     if (alertsData) {
-      const newAlerts = alertsData.filter((alert: Alert) => 
-        !alerts.some(existing => existing.id === alert.id)
-      );
-      
-      if (newAlerts.length > 0) {
-        setAlerts(prev => [...newAlerts, ...prev]);
-        // Show toast for new high/critical alerts
-        newAlerts.forEach((alert: Alert) => {
-          if (alert.severity === 'HIGH' || alert.severity === 'CRITICAL') {
-            toast({
-              title: 'New Alert',
-              description: alert.message,
-              variant: alert.severity === 'CRITICAL' ? 'destructive' : 'default',
-            });
-          }
-        });
-      }
+      setAlerts(alertsData);
     }
-  }, [alertsData, alerts, toast]);
+  }, [alertsData]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowAlerts(false);
+      }
+    };
+
+    if (showAlerts) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showAlerts]);
 
   const acknowledgeAlert = async (alertId: string) => {
     try {
       await axiosInstance.patch(`/alerts/${alertId}/acknowledge`);
+      // Optimistically update local state
       setAlerts(prev => prev.filter(alert => alert.id !== alertId));
-      refetch();
+      // Refetch to ensure consistency
+      await refetch();
+      toast({
+        title: 'Success',
+        description: 'Alert dismissed'
+      });
     } catch (error) {
+      console.error('Acknowledge alert error:', error);
+      // Revert optimistic update on error
+      await refetch();
       toast({
         title: 'Error',
         description: 'Failed to acknowledge alert',
@@ -94,7 +106,7 @@ export function RealTimeAlerts() {
   const unacknowledgedCount = alerts.filter(alert => !alert.acknowledged).length;
 
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <Button
         variant="ghost"
         size="sm"
@@ -154,7 +166,10 @@ export function RealTimeAlerts() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => acknowledgeAlert(alert.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            acknowledgeAlert(alert.id);
+                          }}
                         >
                           <X className="h-3 w-3" />
                         </Button>

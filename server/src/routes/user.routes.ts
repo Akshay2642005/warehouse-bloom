@@ -43,9 +43,21 @@ userRouter.put('/:id/password', requireAuth, updatePassword);
 /**
  * Two-factor authentication routes
  */
+userRouter.post('/2fa/setup', requireAuth, (req, res) => {
+  req.params.id = req.user!.id;
+  setupTwoFactor(req, res);
+});
+userRouter.post('/2fa/verify', requireAuth, (req, res) => {
+  req.params.id = req.user!.id;
+  verifyTwoFactor(req, res);
+});
 userRouter.post('/:id/2fa/setup', requireAuth, setupTwoFactor);
 userRouter.post('/:id/2fa/verify', requireAuth, verifyTwoFactor);
 userRouter.delete('/:id/2fa', requireAuth, disableTwoFactor);
+userRouter.delete('/2fa/disable', requireAuth, (req, res) => {
+  req.params.id = req.user!.id;
+  disableTwoFactor(req, res);
+});
 
 /**
  * Delete user (admin only)

@@ -4,6 +4,8 @@ import { registerSchema, loginSchema } from "../validation/auth.schema";
 import { hashPassword } from "../utils/password";
 import { signToken } from "../utils/jwt";
 import { createResponse } from "../utils/apiResponse";
+import * as speakeasy from "speakeasy";
+import { z } from "zod";
 
 /**
  * Registers a new user.
@@ -68,6 +70,52 @@ export async function loginUser(req: Request, res: Response): Promise<void> {
         token,
       },
       message: "Login successful",
+    }),
+  );
+}
+
+/**
+ * Verify MFA token during login
+ */
+export async function verifyMFALogin(req: Request, res: Response): Promise<void> {
+  const { email, token } = z.object({
+    email: z.string().email(),
+    token: z.string().length(6)
+  }).parse(req.body);
+
+  const user = await AuthService.findUserByEmailWithMFA(email);
+  if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
+    res.status(400).json(createResponse({ success: false, message: "Invalid request" }));
+    return;
+  }
+
+  const verified = speakeasy.totp.verify({
+    secret: user.twoFactorSecret,
+    encoding: 'base32',
+    token,
+    window: 2
+  });
+
+  if (!verified) {
+    res.status(400).json(createResponse({ success: false, message: "Invalid verification code" }));
+    return;
+  }
+
+  const jwtToken = signToken({ id: user.id, email: user.email, role: user.role });
+
+  res.cookie("token", jwtToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 24 * 60 * 60 * 1000,
+  });
+
+  res.status(200).json(
+    createResponse({
+      data: {
+        user: { id: user.id, email: user.email, role: user.role, name: user.name, avatarUrl: user.avatarUrl, twoFactorEnabled: user.twoFactorEnabled },
+        token: jwtToken,
+      },
+      message: "MFA verification successful",
     }),
   );
 }

@@ -45,6 +45,26 @@ export class AuthService {
   }
 
   /**
+   * Finds user by email with MFA fields.
+   */
+  static async findUserByEmailWithMFA(
+    email: string,
+  ): Promise<{ id: string; email: string; role: string; name: string | null; avatarUrl: string | null; twoFactorEnabled: boolean; twoFactorSecret: string | null } | null> {
+    return prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        name: true,
+        avatarUrl: true,
+        twoFactorEnabled: true,
+        twoFactorSecret: true,
+      },
+    });
+  }
+
+  /**
    * Finds user by ID with complete profile.
    */
   static async findUserById(

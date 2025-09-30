@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { registerUser, loginUser, getCurrentUser } from '../controllers/auth.controller';
+import { registerUser, loginUser, getCurrentUser, verifyMFALogin } from '../controllers/auth.controller';
 import { authenticate } from '../middlewares/requireAuth';
 
 export const authRouter = Router();
@@ -21,6 +21,15 @@ authRouter.post('/register', registerUser);
  *     tags: [Auth]
  */
 authRouter.post('/login', loginUser);
+
+/**
+ * @openapi
+ * /api/auth/verify-mfa:
+ *   post:
+ *     summary: Verify MFA token during login
+ *     tags: [Auth]
+ */
+authRouter.post('/verify-mfa', verifyMFALogin);
 
 /**
  * @openapi

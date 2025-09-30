@@ -44,7 +44,7 @@ export default function Profile() {
   }, [user]);
 
   const updateProfileMutation = useMutation({
-    mutationFn: (data: UpdateUserData) => updateUserProfile(user!.id, data),
+    mutationFn: (data: UpdateUserData) => updateUserProfile(data),
     onSuccess: async (updatedUser) => {
       // Refresh user data from server to get the latest state
       await refreshUser();
@@ -56,7 +56,7 @@ export default function Profile() {
   });
 
   const updatePasswordMutation = useMutation({
-    mutationFn: (data: UpdatePasswordData) => updateUserPassword(user!.id, data),
+    mutationFn: (data: UpdatePasswordData) => updateUserPassword(data),
     onSuccess: () => {
       setFormData(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
       toast({ title: 'Success', description: 'Password updated successfully' });
@@ -65,7 +65,7 @@ export default function Profile() {
   });
 
   const setup2FAMutation = useMutation({
-    mutationFn: () => setupTwoFactor(user!.id),
+    mutationFn: () => setupTwoFactor(),
     onSuccess: (data) => {
       setTwoFactorSetup(data);
       setShow2FADialog(true);
@@ -74,7 +74,7 @@ export default function Profile() {
   });
 
   const verify2FAMutation = useMutation({
-    mutationFn: (token: string) => verifyTwoFactor(user!.id, token),
+    mutationFn: (token: string) => verifyTwoFactor(token),
     onSuccess: async () => {
       setUser({ ...user!, twoFactorEnabled: true });
       setShow2FADialog(false);

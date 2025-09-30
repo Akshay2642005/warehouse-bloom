@@ -15,7 +15,7 @@ export async function fetchAlerts(): Promise<Alert[]> {
  * Acknowledge an alert
  */
 export async function acknowledgeAlert(alertId: string): Promise<void> {
-  await axiosInstance.put(`/alerts/${alertId}/acknowledge`);
+  await axiosInstance.patch(`/alerts/${alertId}/acknowledge`);
 }
 
 /**

@@ -14,7 +14,12 @@ const PORT = Number(process.env.PORT || 4000);
 async function bootstrap(): Promise<void> {
   try {
     // Initialize external services
-    await connectRedis();
+    try {
+      await connectRedis();
+    } catch (error) {
+      logger.warn('Redis connection failed, continuing without cache', { error: (error as Error).message });
+    }
+    
     await prisma.$connect();
 
     // Start PG LISTEN for alert notifications
@@ -23,8 +28,10 @@ async function bootstrap(): Promise<void> {
     onPgNotification(async (payload) => {
       try {
         const redis = getRedis();
-        const event = { type: 'alert', data: payload };
-        await redis.publish('events', JSON.stringify(event));
+        if (redis) {
+          const event = { type: 'alert', data: payload };
+          await redis.publish('events', JSON.stringify(event));
+        }
 
         // Send mail for critical/high alerts (if SMTP configured)
         if (process.env.SMTP_HOST) {

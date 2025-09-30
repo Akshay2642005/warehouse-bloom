@@ -66,8 +66,8 @@ function AppRoutes() {
 }
 
 const App = () => (
-  <UserProvider>
-    <QueryClientProvider client={queryClient}>
+  <QueryClientProvider client={queryClient}>
+    <UserProvider>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
         <TooltipProvider>
           <Toaster />
@@ -77,8 +77,8 @@ const App = () => (
           </BrowserRouter>
         </TooltipProvider>
       </ThemeProvider>
-    </QueryClientProvider>
-  </UserProvider>
+    </UserProvider>
+  </QueryClientProvider>
 );
 
 export default App;

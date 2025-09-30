@@ -55,12 +55,8 @@ export function ShipmentTable() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader>
         <CardTitle className="text-lg font-semibold">Shipment Management</CardTitle>
-        <Button size="sm" onClick={() => setShowDialog(true)}>
-          <Truck className="h-4 w-4 mr-2" />
-          Create Shipment
-        </Button>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
