@@ -11,6 +11,9 @@ COPY src ./src
 COPY prisma ./prisma
 
 RUN npx prisma generate
-RUN npm run build
-RUN test -d dist || (echo "❌ Build failed: dist folder not found!" && exit 1)
+EXPOSE 4000
+
+
+CMD ["npm", "run" "db:migrate"]
+CMD ["npm", "run", "dev"]
 
