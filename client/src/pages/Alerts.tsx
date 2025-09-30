@@ -1,94 +1,80 @@
-import { Layout } from "@/components/Layout";
+import { useEffect, useRef } from 'react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, CheckCircle, XCircle, Clock } from "lucide-react";
-
-const alertsData = [
-  {
-    id: "ALT-001",
-    type: "Low Stock",
-    title: "Critical Stock Level",
-    description: "Gaming Keyboard (SKU-002) has only 6 units left",
-    severity: "High",
-    timestamp: "2024-01-15 14:30",
-    status: "Active"
-  },
-  {
-    id: "ALT-002",
-    type: "Temperature",
-    title: "Temperature Alert",
-    description: "Warehouse Zone A temperature is 28°C (above 25°C threshold)",
-    severity: "Medium",
-    timestamp: "2024-01-15 13:45",
-    status: "Acknowledged"
-  },
-  {
-    id: "ALT-003",
-    type: "Security",
-    title: "Unauthorized Access",
-    description: "Door sensor triggered in Zone B after hours",
-    severity: "High",
-    timestamp: "2024-01-15 02:15",
-    status: "Resolved"
-  },
-  {
-    id: "ALT-004",
-    type: "System",
-    title: "Backup Complete",
-    description: "Daily system backup completed successfully",
-    severity: "Low",
-    timestamp: "2024-01-15 01:00",
-    status: "Resolved"
-  }
-];
+import { AlertTriangle, CheckCircle, XCircle, Clock, Bell } from "lucide-react";
+import { fetchAlerts } from '@/api/dashboard';
+import { acknowledgeAlert, restockItem } from '@/api/alerts';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Alerts() {
-  const getSeverityBadge = (severity: string) => {
-    switch (severity) {
-      case "High":
-        return <Badge className="bg-destructive text-destructive-foreground">High</Badge>;
-      case "Medium":
-        return <Badge className="bg-warning text-warning-foreground">Medium</Badge>;
-      case "Low":
-        return <Badge className="bg-muted text-muted-foreground">Low</Badge>;
-      default:
-        return <Badge variant="outline">Normal</Badge>;
-    }
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { data: alerts = [], isLoading } = useQuery({
+    queryKey: ['alerts'],
+    queryFn: fetchAlerts,
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache
+    refetchOnMount: true,
+    refetchOnWindowFocus: true
+  });
+
+  const ackMutation = useMutation({
+    mutationFn: acknowledgeAlert,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['alerts'] }); toast({ title: 'Alert dismissed' }); }
+  });
+  const restockMutation = useMutation({
+    mutationFn: ({ itemId, amount }: { itemId: string; amount: number; }) => restockItem(itemId, amount),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['alerts'] }); toast({ title: 'Restocked', description: 'Inventory updated' }); }
+  });
+
+  const sseRef = useRef<EventSource | null>(null);
+  useEffect(() => {
+    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
+    const url = base.replace(/\/$/, '') + '/events/stream';
+    const es = new EventSource(url, { withCredentials: true } as any);
+    sseRef.current = es;
+    es.onmessage = (evt) => {
+      try {
+        const event = JSON.parse(evt.data);
+        if (event?.type === 'alert') {
+          queryClient.invalidateQueries({ queryKey: ['alerts'] });
+        }
+      } catch { }
+    };
+    es.onerror = () => { es.close(); };
+    return () => es.close();
+  }, [queryClient]);
+
+  const getSeverityBadge = (quantity: number) => {
+    if (quantity === 0) return <Badge className="bg-destructive text-destructive-foreground">Critical</Badge>;
+    if (quantity < 5) return <Badge className="bg-orange-500 text-white">High</Badge>;
+    if (quantity < 10) return <Badge className="bg-warning text-warning-foreground">Medium</Badge>;
+    return <Badge className="bg-muted text-muted-foreground">Low</Badge>;
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "Active":
-        return <AlertTriangle className="h-4 w-4 text-destructive" />;
-      case "Acknowledged":
-        return <Clock className="h-4 w-4 text-warning" />;
-      case "Resolved":
-        return <CheckCircle className="h-4 w-4 text-success" />;
-      default:
-        return <XCircle className="h-4 w-4 text-muted-foreground" />;
-    }
+  const getStatusIcon = (quantity: number) => {
+    if (quantity === 0) return <XCircle className="h-4 w-4 text-destructive" />;
+    if (quantity < 10) return <AlertTriangle className="h-4 w-4 text-warning" />;
+    return <CheckCircle className="h-4 w-4 text-success" />;
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "Active":
-        return <Badge variant="outline" className="border-destructive text-destructive bg-destructive/10">Active</Badge>;
-      case "Acknowledged":
-        return <Badge variant="outline" className="border-warning text-warning bg-warning/10">Acknowledged</Badge>;
-      case "Resolved":
-        return <Badge variant="outline" className="border-success text-success bg-success/10">Resolved</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
-    }
-  };
+  const validAlerts = alerts.filter(item => item && item.id && item.name);
+  const criticalCount = validAlerts.filter(item => (item.quantity || 0) === 0).length;
+  const lowStockCount = validAlerts.filter(item => (item.quantity || 0) > 0 && (item.quantity || 0) < 10).length;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Alerts & Notifications</h1>
-        <p className="text-muted-foreground">Monitor system alerts and warehouse notifications.</p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Alerts & Notifications</h1>
+          <p className="text-muted-foreground">Monitor system alerts and inventory warnings.</p>
+        </div>
+        <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ['alerts'] })}>
+          <Bell className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
       </div>
 
       {/* Alert Summary */}
@@ -98,7 +84,7 @@ export default function Alerts() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Active Alerts</p>
-                <p className="text-2xl font-bold text-destructive">3</p>
+                <p className="text-2xl font-bold text-destructive">{validAlerts.length}</p>
               </div>
               <AlertTriangle className="h-8 w-8 text-destructive" />
             </div>
@@ -108,8 +94,8 @@ export default function Alerts() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">High Priority</p>
-                <p className="text-2xl font-bold text-destructive">2</p>
+                <p className="text-sm font-medium text-muted-foreground">Out of Stock</p>
+                <p className="text-2xl font-bold text-destructive">{criticalCount}</p>
               </div>
               <XCircle className="h-8 w-8 text-destructive" />
             </div>
@@ -119,10 +105,10 @@ export default function Alerts() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Acknowledged</p>
-                <p className="text-2xl font-bold text-warning">1</p>
+                <p className="text-sm font-medium text-muted-foreground">Low Stock</p>
+                <p className="text-2xl font-bold text-warning">{lowStockCount}</p>
               </div>
-              <Clock className="h-8 w-8 text-warning" />
+              <Bell className="h-8 w-8 text-warning" />
             </div>
           </CardContent>
         </Card>
@@ -130,59 +116,48 @@ export default function Alerts() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Resolved Today</p>
-                <p className="text-2xl font-bold text-success">5</p>
+                <p className="text-sm font-medium text-muted-foreground">Needs Attention</p>
+                <p className="text-2xl font-bold text-info">{validAlerts.length}</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-success" />
+              <Clock className="h-8 w-8 text-info" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Alerts Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Alerts</CardTitle>
+          <CardTitle>Inventory Alerts</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {alertsData.map((alert) => (
-              <div key={alert.id} className="flex items-start gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                <div className="flex-shrink-0 mt-1">
-                  {getStatusIcon(alert.status)}
-                </div>
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-foreground">{alert.title}</h4>
-                    <div className="flex items-center gap-2">
-                      {getSeverityBadge(alert.severity)}
-                      {getStatusBadge(alert.status)}
+          {isLoading ? (
+            <div className="text-center py-8">Loading alerts...</div>
+          ) : validAlerts.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <CheckCircle className="h-12 w-12 mx-auto mb-4 text-success" />
+              <p>No alerts! All inventory levels are healthy.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {alerts.filter(item => item && item.id && item.name).map((item) => (
+                <div key={item.id} className="flex items-start gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                  <div className="flex-shrink-0 mt-1">{getStatusIcon(item.quantity || 0)}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-sm">Low Stock Alert</span>
+                      {getSeverityBadge(item.quantity || 0)}
                     </div>
+                    <p className="text-foreground mb-2">{item.name || 'Unknown Item'} (SKU: {item.sku || 'N/A'}) - {(item.quantity || 0) === 0 ? 'Out of stock' : `Only ${item.quantity || 0} units remaining`}</p>
+                    <p className="text-sm text-muted-foreground">Price: ${((item.priceCents || 0) / 100).toFixed(2)}</p>
                   </div>
-                  <p className="text-sm text-muted-foreground">{alert.description}</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span>ID: {alert.id}</span>
-                      <span>Type: {alert.type}</span>
-                      <span>{alert.timestamp}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      {alert.status === "Active" && (
-                        <>
-                          <Button variant="outline" size="sm">
-                            Acknowledge
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            Resolve
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => restockMutation.mutate({ itemId: item.id, amount: 10 })}>Restock</Button>
+                    <Button variant="ghost" size="sm" onClick={() => ackMutation.mutate(item.id)}>Dismiss</Button>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

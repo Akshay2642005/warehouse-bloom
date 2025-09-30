@@ -1,46 +1,13 @@
 import { axiosInstance } from './axiosInstance';
-import { ApiResponse } from './auth';
+import type { ApiResponse, Item, PaginatedResponse, CreateItemData, UpdateItemData, QueryParams } from '@/types';
 
-export interface Item {
-  id: string;
-  name: string;
-  sku: string;
-  quantity: number;
-  priceCents: number;
-  imageUrl?: string;
-  description?: string;
-  ownerId?: string;
-  createdAt: string;
-  updatedAt: string;
-  owner?: {
-    id: string;
-    email: string;
-    role: string;
-  };
-}
-
-export interface PaginatedItems { 
-  items: Item[]; 
-  page: number; 
-  pageSize: number; 
-  total: number;
-  totalPages: number;
-}
-
-export interface CreateItemData {
-  name: string;
-  sku: string;
-  quantity: number;
-  priceCents: number;
-  imageUrl?: string;
-  description?: string;
-}
+export type { Item, CreateItemData };
 
 /**
  * Fetches a paginated list of items.
  */
-export async function fetchItems(params?: { page?: number; pageSize?: number; q?: string }): Promise<PaginatedItems> {
-  const response = await axiosInstance.get<ApiResponse<PaginatedItems>>('/items', { params });
+export async function fetchItems(params?: QueryParams): Promise<PaginatedResponse<Item>> {
+  const response = await axiosInstance.get<ApiResponse<PaginatedResponse<Item>>>('/items', { params });
   return response.data.data!;
 }
 
@@ -63,7 +30,7 @@ export async function fetchItemById(id: string): Promise<Item> {
 /**
  * Updates an item by id.
  */
-export async function updateItemByIdApi(id: string, data: Partial<CreateItemData>): Promise<Item> {
+export async function updateItemByIdApi(id: string, data: UpdateItemData): Promise<Item> {
   const response = await axiosInstance.put<ApiResponse<{ item: Item }>>(`/items/${id}`, data);
   return response.data.data!.item;
 }

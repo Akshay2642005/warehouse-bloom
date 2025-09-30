@@ -5,8 +5,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createItemApi, updateItemByIdApi, Item } from "@/api/items";
+import { createItemApi, updateItemByIdApi } from "@/api/items";
 import { useToast } from "@/hooks/use-toast";
+import type { Item, CreateItemData, UpdateItemData, ApiError } from "@/types";
 
 interface ItemDialogProps {
   open: boolean;
@@ -35,7 +36,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
       toast({ title: "Success", description: "Item created successfully" });
       onSuccess?.();
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       toast({ 
         title: "Error", 
         description: error.response?.data?.message || "Failed to create item",
@@ -45,13 +46,13 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => updateItemByIdApi(id, data),
+    mutationFn: ({ id, data }: { id: string; data: UpdateItemData }) => updateItemByIdApi(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items'] });
       toast({ title: "Success", description: "Item updated successfully" });
       onSuccess?.();
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       toast({ 
         title: "Error", 
         description: error.response?.data?.message || "Failed to update item",
@@ -173,7 +174,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading} className="bg-yellow-500 hover:bg-yellow-600 text-black">
               {isLoading ? 'Saving...' : (item ? 'Update' : 'Create')}
             </Button>
           </div>
