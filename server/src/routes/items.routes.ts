@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createItem, getItems, getItemById, updateItemById, deleteItemById } from '../controllers/items.controller';
+import { createItem, getItems, getItemById, updateItemById, deleteItemById, restockItem } from '../controllers/items.controller';
 import { requireAuth } from '../middlewares/requireAuth';
 
 export const itemsRouter = Router();
@@ -47,4 +47,13 @@ itemsRouter.put('/:id', requireAuth, updateItemById);
  *     summary: Delete item by id
  *     tags: [Items]
  */
-itemsRouter.delete('/:id', requireAuth, deleteItemById); 
+itemsRouter.delete('/:id', requireAuth, deleteItemById);
+
+/**
+ * @openapi
+ * /api/items/{id}/restock:
+ *   post:
+ *     summary: Restock item
+ *     tags: [Items]
+ */
+itemsRouter.post('/:id/restock', requireAuth, restockItem); 

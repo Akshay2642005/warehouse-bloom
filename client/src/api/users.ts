@@ -1,50 +1,21 @@
 import { axiosInstance } from './axiosInstance';
-import { ApiResponse, User } from './auth';
+import type { ApiResponse, User, UserProfile, UserStats, UpdateUserData, UpdatePasswordData, TwoFactorSetup } from '@/types';
 
-export interface UserWithStats extends User {
-  createdAt: string;
-  updatedAt: string;
-  name?: string;
-  avatarUrl?: string;
-  twoFactorEnabled?: boolean;
-  _count: {
-    items: number;
-  };
-}
-
-export interface UserStats {
-  totalUsers: number;
-  adminCount: number;
-  userCount: number;
-  recentUsers: number;
-}
-
-export interface UpdateUserData {
-  email?: string;
-  role?: 'admin' | 'user';
-  name?: string;
-  avatarUrl?: string;
-  twoFactorEnabled?: boolean;
-}
-
-export interface UpdatePasswordData {
-  currentPassword: string;
-  newPassword: string;
-}
+export type { UserProfile, UserStats, UpdateUserData, UpdatePasswordData };
 
 /**
  * Get all users (admin only)
  */
-export async function fetchUsers(): Promise<UserWithStats[]> {
-  const response = await axiosInstance.get<ApiResponse<{ users: UserWithStats[] }>>('/users');
+export async function fetchUsers(): Promise<UserProfile[]> {
+  const response = await axiosInstance.get<ApiResponse<{ users: UserProfile[] }>>('/users');
   return response.data.data!.users;
 }
 
 /**
  * Get user by ID
  */
-export async function fetchUserById(id: string): Promise<UserWithStats> {
-  const response = await axiosInstance.get<ApiResponse<{ user: UserWithStats }>>(`/users/${id}`);
+export async function fetchUserById(id: string): Promise<UserProfile> {
+  const response = await axiosInstance.get<ApiResponse<{ user: UserProfile }>>(`/users/${id}`);
   return response.data.data!.user;
 }
 
@@ -64,10 +35,25 @@ export async function updateUserPassword(id: string, data: UpdatePasswordData): 
 }
 
 /**
- * Toggle two-factor authentication
+ * Setup two-factor authentication
  */
-export async function toggleTwoFactor(id: string, enabled: boolean): Promise<void> {
-  await axiosInstance.put(`/users/${id}/twofactor`, { enabled });
+export async function setupTwoFactor(id: string): Promise<TwoFactorSetup> {
+  const response = await axiosInstance.post<ApiResponse<TwoFactorSetup>>(`/users/${id}/2fa/setup`);
+  return response.data.data!;
+}
+
+/**
+ * Verify two-factor authentication
+ */
+export async function verifyTwoFactor(id: string, token: string): Promise<void> {
+  await axiosInstance.post(`/users/${id}/2fa/verify`, { token });
+}
+
+/**
+ * Disable two-factor authentication
+ */
+export async function disableTwoFactor(id: string): Promise<void> {
+  await axiosInstance.delete(`/users/${id}/2fa`);
 }
 
 /**

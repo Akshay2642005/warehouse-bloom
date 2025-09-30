@@ -129,6 +129,7 @@ export function ShipmentDialog({ open, onOpenChange, shipment, onSuccess }: Ship
                   <SelectItem value="In Transit">In Transit</SelectItem>
                   <SelectItem value="Delivered">Delivered</SelectItem>
                   <SelectItem value="Delayed">Delayed</SelectItem>
+                  <SelectItem value="Cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
             </div>
