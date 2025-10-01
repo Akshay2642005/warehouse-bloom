@@ -23,6 +23,9 @@ import { shipmentsRouter } from './routes/shipments.routes';
 import { systemRouter } from './routes/system.routes';
 import { usersRouter } from './routes/users.routes';
 import { searchRouter } from './routes/search.routes';
+import { invitationsRouter } from './routes/invitations.routes';
+import analyticsRouter from './routes/analytics.routes';
+import notificationsRouter from './routes/notifications.routes';
 
 /**
  * Creates and configures the Express application.
@@ -48,10 +51,18 @@ export function createApp(): Application {
     }
   }));
   
-  app.use(cors({ 
-    origin: config.CLIENT_ORIGIN?.split(',') || '*', 
+  // Dynamic CORS to properly support credentials with one or many allowed origins
+  const allowedOrigins = (config.CLIENT_ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean);
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // allow non-browser / same-origin
+      if (!allowedOrigins.length || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS')); 
+    },
     credentials: true,
-    maxAge: 86400 // Cache preflight for 24 hours
+    maxAge: 86400
   }));
   
   app.use(compression({ 
@@ -75,9 +86,11 @@ export function createApp(): Application {
   app.use(hpp());
   app.use(morgan(config.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-  // Performance monitoring
-  app.use(performanceMonitor);
-  app.use(memoryMonitor);
+  // Performance monitoring (skip in test to reduce noise)
+  if (config.NODE_ENV !== 'test') {
+    app.use(performanceMonitor);
+    app.use(memoryMonitor);
+  }
   app.use(healthCheck);
 
   // Production-grade rate limiting
@@ -100,6 +113,9 @@ export function createApp(): Application {
   app.use('/api/settings', settingsRouter);
   app.use('/api/events', eventsRouter);
   app.use('/api/search', rateLimiters.search, searchRouter);
+  app.use('/api/invitations', invitationsRouter);
+  app.use('/api/analytics', analyticsRouter);
+  app.use('/api/notifications', notificationsRouter);
 
   // 404 and error handling
   app.use(notFoundHandler);

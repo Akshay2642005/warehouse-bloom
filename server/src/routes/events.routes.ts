@@ -11,6 +11,11 @@ eventsRouter.get('/stream', async (req: Request, res: Response) => {
   res.flushHeaders?.();
 
   const redis = getRedis();
+  if (!redis) {
+    res.write(`data: ${JSON.stringify({ type: 'warning', message: 'Realtime events unavailable (no Redis)' })}\n\n`);
+    res.end();
+    return;
+  }
   const subscriber = redis.duplicate();
   await subscriber.connect();
   await subscriber.subscribe('events', (message) => {

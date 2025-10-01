@@ -16,11 +16,14 @@ model User {
   updatedAt        DateTime      @updatedAt
   avatarUrl        String?
   name             String?
+  phoneNumber      String?
   twoFactorEnabled Boolean       @default(false)
   twoFactorSecret  String?
   items            Item[]
   orders           Order[]
   sessions         UserSession[]
+  invitationsSent  InvitationToken[] @relation("UserInvitations")
+  notifications    Notification[]
 }
 
 model Item {
@@ -37,6 +40,12 @@ model Item {
   alerts      Alert[]
   owner       User?       @relation(fields: [ownerId], references: [id])
   orderItems  OrderItem[]
+  supplierId  String?
+  categoryId  String?
+  supplier    Supplier?    @relation(fields: [supplierId], references: [id])
+  category    Category?    @relation(fields: [categoryId], references: [id])
+  logs        InventoryLog[]
+  reorderLevel Int         @default(10)
 
   @@index([name])
   @@index([sku])
@@ -44,6 +53,8 @@ model Item {
   @@index([ownerId])
   @@index([updatedAt])
   @@index([name, sku, description])
+  @@index([supplierId])
+  @@index([categoryId])
 }
 
 model Order {
@@ -57,6 +68,12 @@ model Order {
   user        User        @relation(fields: [userId], references: [id])
   items       OrderItem[]
   shipments   Shipment[]
+  supplierId  String?
+  supplier    Supplier?   @relation(fields: [supplierId], references: [id])
+
+  @@index([createdAt])
+  @@index([status])
+  @@index([supplierId])
 }
 
 model OrderItem {
@@ -67,6 +84,9 @@ model OrderItem {
   priceCents Int
   item       Item   @relation(fields: [itemId], references: [id])
   order      Order  @relation(fields: [orderId], references: [id])
+
+  @@index([itemId])
+  @@index([orderId])
 }
 
 model Shipment {
@@ -78,8 +98,13 @@ model Shipment {
   status            String    @default("Processing")
   shippedDate       DateTime?
   estimatedDelivery DateTime?
+  deliveredDate     DateTime?
   createdAt         DateTime  @default(now())
   order             Order     @relation(fields: [orderId], references: [id])
+  events            ShipmentEvent[]
+
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Alert {
@@ -111,6 +136,82 @@ model UserSession {
 
   @@index([userId])
   @@index([lastActivity])
+}
+
+model InvitationToken {
+  id          String   @id @default(cuid())
+  email       String
+  role        String   @default("user")
+  token       String   @unique
+  accepted    Boolean  @default(false)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  invitedById String?
+  invitedBy   User?    @relation("UserInvitations", fields: [invitedById], references: [id])
+
+  @@index([email])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// New Models
+
+model Supplier {
+  id          String   @id @default(cuid())
+  name        String
+  contactInfo String?
+  email       String?  @unique
+  phone       String?
+  address     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  items       Item[]
+  orders      Order[]
+  @@index([name])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items     Item[]
+}
+
+model InventoryLog {
+  id          String   @id @default(cuid())
+  itemId      String
+  delta       Int
+  reason      String
+  referenceId String?
+  createdAt   DateTime @default(now())
+  item        Item     @relation(fields: [itemId], references: [id])
+  @@index([itemId])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  message   String
+  type      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+model ShipmentEvent {
+  id         String   @id @default(cuid())
+  shipmentId String
+  status     String
+  location   String?
+  note       String?
+  createdAt  DateTime @default(now())
+  shipment   Shipment @relation(fields: [shipmentId], references: [id])
+  @@index([shipmentId])
+  @@index([createdAt])
 }
 
 enum OrderStatus {

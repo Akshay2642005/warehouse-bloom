@@ -28,11 +28,13 @@ export function performanceMonitor(req: Request, res: Response, next: NextFuncti
     // Track metrics in Redis for monitoring
     try {
       const redis = getRedis();
-      const metricsKey = `metrics:${method}:${url.split('?')[0]}`;
-      redis.hIncrBy(metricsKey, 'count', 1);
-      redis.hIncrBy(metricsKey, 'totalTime', duration);
-      redis.expire(metricsKey, 3600); // Keep metrics for 1 hour
-    } catch (error) {
+      if (redis) {
+        const metricsKey = `metrics:${method}:${url.split('?')[0]}`;
+        redis.hIncrBy(metricsKey, 'count', 1);
+        redis.hIncrBy(metricsKey, 'totalTime', duration);
+        redis.expire(metricsKey, 3600); // Keep metrics for 1 hour
+      }
+    } catch {
       // Silently fail metrics collection
     }
   });
@@ -101,13 +103,12 @@ export async function healthCheck(req: Request, res: Response, next: NextFunctio
   if (req.path === '/health') {
     try {
       const redis = getRedis();
-      await redis.ping();
-      
-      res.status(200).json({
-        status: 'healthy',
+      const redisHealthy = redis ? await redis.ping().then(() => true).catch(() => false) : false;
+      res.status(redisHealthy ? 200 : 503).json({
+        status: redisHealthy ? 'healthy' : 'degraded',
         timestamp: new Date().toISOString(),
         services: {
-          redis: 'connected',
+          redis: redisHealthy ? 'connected' : 'disconnected',
           database: 'connected'
         },
         memory: {
@@ -116,11 +117,11 @@ export async function healthCheck(req: Request, res: Response, next: NextFunctio
         }
       });
       return;
-    } catch (error) {
+    } catch (err) {
       res.status(503).json({
         status: 'unhealthy',
         timestamp: new Date().toISOString(),
-        error: error.message
+        error: err instanceof Error ? err.message : 'Unknown error'
       });
       return;
     }

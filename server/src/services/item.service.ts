@@ -41,12 +41,14 @@ export class ItemService {
     const cacheKey = `sku:${data.sku}`;
     try {
       const redis = getRedis();
-      const cached = await redis.get(cacheKey);
-      if (cached) {
-        throw new Error('SKU already exists');
+      if (redis) {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+          throw new Error('SKU already exists');
+        }
       }
     } catch (error) {
-      logger.warn('Redis check failed, falling back to DB', { error: error.message });
+      logger.warn('Redis check failed, falling back to DB', { error: error instanceof Error ? error.message : 'unknown' });
     }
 
     const existingItem = await prisma.item.findUnique({
@@ -57,9 +59,11 @@ export class ItemService {
       // Cache the SKU for future checks
       try {
         const redis = getRedis();
-        await redis.setEx(cacheKey, 3600, 'exists');
+        if (redis) {
+          await redis.setEx(cacheKey, 3600, 'exists');
+        }
       } catch (error) {
-        logger.warn('Failed to cache SKU', { error: error.message });
+        logger.warn('Failed to cache SKU', { error: error instanceof Error ? error.message : 'unknown' });
       }
       throw new Error('SKU already exists');
     }
@@ -80,10 +84,12 @@ export class ItemService {
     // Cache the new SKU and invalidate search cache
     try {
       const redis = getRedis();
-      await redis.setEx(cacheKey, 3600, 'exists');
+      if (redis) {
+        await redis.setEx(cacheKey, 3600, 'exists');
+      }
       await SearchService.invalidateCache('items');
     } catch (error) {
-      logger.warn('Failed to update cache after item creation', { error: error.message });
+      logger.warn('Failed to update cache after item creation', { error: error instanceof Error ? error.message : 'unknown' });
     }
 
     return item;
@@ -160,14 +166,16 @@ export class ItemService {
     // Update cache
     try {
       const redis = getRedis();
-      if (data.sku && data.sku !== existingItem.sku) {
-        // Remove old SKU from cache and add new one
-        await redis.del(`sku:${existingItem.sku}`);
-        await redis.setEx(`sku:${data.sku}`, 3600, 'exists');
+      if (redis) {
+        if (data.sku && data.sku !== existingItem.sku) {
+          // Remove old SKU from cache and add new one
+          await redis.del(`sku:${existingItem.sku}`);
+          await redis.setEx(`sku:${data.sku}`, 3600, 'exists');
+        }
       }
       await SearchService.invalidateCache('items');
     } catch (error) {
-      logger.warn('Failed to update cache after item update', { error: error.message });
+      logger.warn('Failed to update cache after item update', { error: error instanceof Error ? error.message : 'unknown' });
     }
 
     return updatedItem;
@@ -186,10 +194,12 @@ export class ItemService {
       // Clean up cache
       try {
         const redis = getRedis();
-        await redis.del(`sku:${item.sku}`);
+        if (redis) {
+          await redis.del(`sku:${item.sku}`);
+        }
         await SearchService.invalidateCache('items');
       } catch (error) {
-        logger.warn('Failed to clean cache after item deletion', { error: error.message });
+        logger.warn('Failed to clean cache after item deletion', { error: error instanceof Error ? error.message : 'unknown' });
       }
       
       return true;

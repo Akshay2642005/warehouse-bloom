@@ -30,6 +30,10 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
     next();
   } catch (error) {
+    // Optional: log error for debugging (avoid leaking details to client)
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Auth error:', (error as Error).message);
+    }
     res.status(401).json(createResponse({
       success: false,
       message: 'Invalid or expired token'
