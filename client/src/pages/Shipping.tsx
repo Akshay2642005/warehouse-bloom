@@ -1,16 +1,24 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Truck, MapPin, Clock, Package } from "lucide-react";
 import { ShipmentTable } from '@/components/ShipmentTable';
 import { ShipmentDialog } from '@/components/ShipmentDialog';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { axiosInstance } from '@/api/axiosInstance';
 
 
 
 export default function Shipping() {
   const [showDialog, setShowDialog] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState(null);
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['shipment-stats'],
+    queryFn: async () => {
+      const res = await axiosInstance.get('/shipments/stats');
+      return res.data.data;
+    }
+  });
 
   return (
     <div className="space-y-6">
@@ -33,7 +41,7 @@ export default function Shipping() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Active Shipments</p>
-                <p className="text-2xl font-bold">23</p>
+                <p className="text-2xl font-bold">{statsLoading ? '—' : stats?.processing ?? 0}</p>
               </div>
               <Truck className="h-8 w-8 text-primary-blue" />
             </div>
@@ -44,7 +52,7 @@ export default function Shipping() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">In Transit</p>
-                <p className="text-2xl font-bold text-info">15</p>
+                <p className="text-2xl font-bold text-info">{statsLoading ? '—' : stats?.inTransit ?? 0}</p>
               </div>
               <Package className="h-8 w-8 text-info" />
             </div>
@@ -55,7 +63,7 @@ export default function Shipping() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Delivered Today</p>
-                <p className="text-2xl font-bold text-success">8</p>
+                <p className="text-2xl font-bold text-success">{statsLoading ? '—' : stats?.delivered ?? 0}</p>
               </div>
               <MapPin className="h-8 w-8 text-success" />
             </div>
@@ -66,7 +74,7 @@ export default function Shipping() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Delayed</p>
-                <p className="text-2xl font-bold text-destructive">2</p>
+                <p className="text-2xl font-bold text-destructive">{statsLoading ? '—' : stats?.delayed ?? 0}</p>
               </div>
               <Clock className="h-8 w-8 text-destructive" />
             </div>

@@ -35,7 +35,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    // Then verify with server and get latest data
+    // Only call backend if we have a token cookie (can't detect easily) or a stored token header
+    const token = localStorage.getItem('auth_token');
+    if (!token && !storedUser) {
+      // No credentials at all; treat as unauthenticated without hitting server
+      setLoading(false);
+      return;
+    }
     getCurrentUser()
       .then((userData) => {
         if (userData) {

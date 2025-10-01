@@ -1,41 +1,58 @@
-import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from "recharts";
+import { useQuery } from '@tanstack/react-query';
+import { fetchAnalyticsSummary } from '@/api/analytics';
+import { useState } from 'react';
 
-const salesData = [
-  { month: "Jan", sales: 45000, orders: 320 },
-  { month: "Feb", sales: 52000, orders: 380 },
-  { month: "Mar", sales: 48000, orders: 350 },
-  { month: "Apr", sales: 61000, orders: 420 },
-  { month: "May", sales: 55000, orders: 390 },
-  { month: "Jun", sales: 67000, orders: 480 },
-];
-
-const categoryData = [
-  { name: "Electronics", value: 35, color: "hsl(var(--primary-blue))" },
-  { name: "Clothing", value: 25, color: "hsl(var(--warning))" },
-  { name: "Home & Garden", value: 20, color: "hsl(var(--success))" },
-  { name: "Sports", value: 12, color: "hsl(var(--info))" },
-  { name: "Others", value: 8, color: "hsl(var(--muted))" },
-];
-
-const inventoryTurnover = [
-  { month: "Jan", turnover: 4.2 },
-  { month: "Feb", turnover: 4.8 },
-  { month: "Mar", turnover: 4.5 },
-  { month: "Apr", turnover: 5.2 },
-  { month: "May", turnover: 4.9 },
-  { month: "Jun", turnover: 5.5 },
-];
+function formatCurrency(cents: number) {
+  return (cents / 100).toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+}
 
 export default function Analytics() {
+  const [range, setRange] = useState<{ from?: string; to?: string }>({});
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['analytics-summary', range],
+    queryFn: () => fetchAnalyticsSummary(range),
+    staleTime: 60_000
+  });
+
+  const salesData = data?.monthlySales.map(m => ({ month: m.month.slice(5), sales: m.revenueCents / 100, orders: m.orders })) || [];
+  const inventoryTurnover = data?.monthlyTurnover || [];
+  const popularProducts = data?.popularProducts || [];
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Analytics & Reports</h1>
-        <p className="text-muted-foreground">Analyze warehouse performance and business metrics.</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Analytics & Reports</h1>
+          <p className="text-muted-foreground">Analyze warehouse performance and business metrics.</p>
+        </div>
+        <div className="flex gap-2 items-center">
+          {/* Simple date range inputs (can enhance later) */}
+          <input
+            type="date"
+            className="border rounded px-2 py-1 bg-background"
+            value={range.from || ''}
+            onChange={e => setRange(r => ({ ...r, from: e.target.value || undefined }))}
+          />
+            <span className="text-muted-foreground">to</span>
+          <input
+            type="date"
+            className="border rounded px-2 py-1 bg-background"
+            value={range.to || ''}
+            onChange={e => setRange(r => ({ ...r, to: e.target.value || undefined }))}
+          />
+          <button
+            onClick={() => refetch()}
+            className="px-3 py-1 rounded bg-primary text-primary-foreground text-sm disabled:opacity-50"
+            disabled={isLoading}
+          >Apply</button>
+        </div>
       </div>
+
+      {isError && (
+        <div className="text-sm text-destructive">Failed to load analytics summary.</div>
+      )}
 
       {/* Key Metrics */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -43,8 +60,8 @@ export default function Analytics() {
           <CardContent className="p-6">
             <div className="text-center">
               <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
-              <p className="text-3xl font-bold text-primary-blue">$328K</p>
-              <p className="text-sm text-success">+15% from last month</p>
+              <p className="text-3xl font-bold text-primary-blue">{isLoading ? '…' : formatCurrency(data?.totalRevenueCents || 0)}</p>
+              <p className="text-sm text-muted-foreground">All time{range.from || range.to ? ' (filtered)' : ''}</p>
             </div>
           </CardContent>
         </Card>
@@ -52,8 +69,8 @@ export default function Analytics() {
           <CardContent className="p-6">
             <div className="text-center">
               <p className="text-sm font-medium text-muted-foreground">Avg. Order Value</p>
-              <p className="text-3xl font-bold text-warning">$142</p>
-              <p className="text-sm text-success">+8% from last month</p>
+              <p className="text-3xl font-bold text-warning">{isLoading ? '…' : formatCurrency(data?.averageOrderValueCents || 0)}</p>
+              <p className="text-sm text-muted-foreground">Revenue / Orders</p>
             </div>
           </CardContent>
         </Card>
@@ -61,17 +78,17 @@ export default function Analytics() {
           <CardContent className="p-6">
             <div className="text-center">
               <p className="text-sm font-medium text-muted-foreground">Inventory Turnover</p>
-              <p className="text-3xl font-bold text-success">5.2x</p>
-              <p className="text-sm text-success">+0.3 from last month</p>
+              <p className="text-3xl font-bold text-success">{isLoading ? '…' : (data?.inventoryTurnover?.toFixed(2) || '0')}</p>
+              <p className="text-sm text-muted-foreground">Approximate</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
             <div className="text-center">
-              <p className="text-sm font-medium text-muted-foreground">Order Fulfillment</p>
-              <p className="text-3xl font-bold text-info">94%</p>
-              <p className="text-sm text-success">+2% from last month</p>
+              <p className="text-sm font-medium text-muted-foreground">Low Stock Items</p>
+              <p className="text-3xl font-bold text-info">{isLoading ? '…' : data?.inventory.lowStockCount}</p>
+              <p className="text-sm text-muted-foreground">Qty ≤ 10</p>
             </div>
           </CardContent>
         </Card>
@@ -115,41 +132,22 @@ export default function Analytics() {
           </CardContent>
         </Card>
 
-        {/* Category Distribution */}
+        {/* Popular Products */}
         <Card>
           <CardHeader>
-            <CardTitle>Sales by Category</CardTitle>
+            <CardTitle>Top Products (Units Sold)</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={categoryData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={120}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {categoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              {categoryData.map((item, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="text-sm text-muted-foreground">{item.name}: {item.value}%</span>
-                </div>
+            {isLoading && <div className="text-sm text-muted-foreground">Loading…</div>}
+            {!isLoading && popularProducts.length === 0 && <div className="text-sm text-muted-foreground">No sales data yet.</div>}
+            <ul className="space-y-2">
+              {popularProducts.map(p => (
+                <li key={p.id} className="flex justify-between text-sm">
+                  <span className="truncate max-w-[60%]" title={p.name}>{p.name}</span>
+                  <span className="text-muted-foreground">{p.quantitySold} ({p.percent}%)</span>
+                </li>
               ))}
-            </div>
+            </ul>
           </CardContent>
         </Card>
 

@@ -26,6 +26,7 @@ export default function Profile() {
     email: user?.email || '',
     name: user?.name || '',
     avatarUrl: user?.avatarUrl || '',
+    phoneNumber: (user as any)?.phoneNumber || '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -38,21 +39,29 @@ export default function Profile() {
         ...prev,
         email: user.email || '',
         name: user.name || '',
-        avatarUrl: user.avatarUrl || ''
+        avatarUrl: user.avatarUrl || '',
+        phoneNumber: (user as any).phoneNumber || ''
       }));
     }
   }, [user]);
 
   const updateProfileMutation = useMutation({
     mutationFn: (data: UpdateUserData) => updateUserProfile(data),
-    onSuccess: async (updatedUser) => {
-      // Refresh user data from server to get the latest state
+    onSuccess: async (response) => {
+      // Update user with the returned data from backend
+      if (response?.data?.user) {
+        setUser(response.data.user);
+      }
+      // Also refresh from server to ensure consistency
       await refreshUser();
       setIsEditing(false);
       queryClient.invalidateQueries({ queryKey: ['currentUser'] });
       toast({ title: 'Success', description: 'Profile updated successfully' });
     },
-    onError: () => toast({ title: 'Error', description: 'Failed to update profile', variant: 'destructive' })
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Failed to update profile';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
+    }
   });
 
   const updatePasswordMutation = useMutation({
@@ -61,7 +70,10 @@ export default function Profile() {
       setFormData(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
       toast({ title: 'Success', description: 'Password updated successfully' });
     },
-    onError: () => toast({ title: 'Error', description: 'Failed to update password', variant: 'destructive' })
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Failed to update password';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
+    }
   });
 
   const setup2FAMutation = useMutation({
@@ -100,8 +112,10 @@ export default function Profile() {
     if (!user) return;
     updateProfileMutation.mutate({
       email: formData.email,
+      confirmEmail: formData.email, // simple confirm pairing
       name: formData.name,
-      avatarUrl: formData.avatarUrl
+      avatarUrl: formData.avatarUrl,
+      phoneNumber: formData.phoneNumber
     });
   };
 
@@ -112,7 +126,8 @@ export default function Profile() {
     }
     updatePasswordMutation.mutate({
       currentPassword: formData.currentPassword,
-      newPassword: formData.newPassword
+      newPassword: formData.newPassword,
+      confirmPassword: formData.confirmPassword
     });
   };
 
@@ -159,6 +174,7 @@ export default function Profile() {
               email: user?.email || '',
               name: user?.name || '',
               avatarUrl: user?.avatarUrl || '',
+              phoneNumber: (user as any)?.phoneNumber || '',
               currentPassword: '',
               newPassword: '',
               confirmPassword: ''
@@ -229,6 +245,10 @@ export default function Profile() {
                 <Label htmlFor="avatarUrl">Avatar URL</Label>
                 <Input id="avatarUrl" value={formData.avatarUrl} onChange={(e) => setFormData(prev => ({ ...prev, avatarUrl: e.target.value }))} disabled={!isEditing} />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="phoneNumber">Phone Number</Label>
+                <Input id="phoneNumber" value={formData.phoneNumber} onChange={(e) => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))} disabled={!isEditing} />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -293,6 +313,7 @@ export default function Profile() {
                       email: user?.email || '',
                       name: user?.name || '',
                       avatarUrl: user?.avatarUrl || '',
+                      phoneNumber: (user as any)?.phoneNumber || '',
                       currentPassword: '',
                       newPassword: '',
                       confirmPassword: ''
@@ -352,6 +373,17 @@ export default function Profile() {
                     maxLength={6}
                   />
                 </div>
+                {twoFactorSetup?.backupCodes && (
+                  <div className="mb-4">
+                    <p className="text-sm font-medium mb-2">Backup Codes (store these safely):</p>
+                    <ul className="text-xs grid grid-cols-2 gap-1 font-mono bg-muted p-2 rounded">
+                      {twoFactorSetup.backupCodes.map(code => (
+                        <li key={code}>{code}</li>
+                      ))}
+                    </ul>
+                    <p className="text-[10px] text-muted-foreground mt-1">These will not be shown again.</p>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <Button 
                     onClick={handleVerify2FA}

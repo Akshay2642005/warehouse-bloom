@@ -41,3 +41,11 @@ export async function updateItemByIdApi(id: string, data: UpdateItemData): Promi
 export async function deleteItemByIdApi(id: string): Promise<void> {
   await axiosInstance.delete(`/items/${id}`);
 } 
+
+/**
+ * Fetch low stock items (quantity <= threshold on server default 10)
+ */
+export async function fetchLowStockItems(): Promise<Item[]> {
+  const res = await axiosInstance.get<ApiResponse<{ items: Item[] }>>('/items/low-stock/list');
+  return res.data.data!.items;
+}
