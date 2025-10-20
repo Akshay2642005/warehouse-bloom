@@ -6,8 +6,8 @@ export class AlertService {
   static async createLowStockAlert(itemId: string, quantity: number): Promise<void> {
     try {
       // Get low stock threshold from settings
-      const thresholdSetting = await prisma.systemSetting.findUnique({
-        where: { key: 'lowStockThreshold' }
+      const thresholdSetting = await prisma.systemSetting.findFirst({
+        where: { key: 'lowStockThreshold', tenantId: null }
       });
       const threshold = parseInt(thresholdSetting?.value || '10');
 
@@ -87,7 +87,7 @@ export class AlertService {
         });
 
         // Check if user has order update notifications enabled
-        const userSetting = await prisma.systemSetting.findUnique({
+        const userSetting = await prisma.systemSetting.findFirst({
           where: { key: `user:${order.userId}:orderUpdates` }
         });
 

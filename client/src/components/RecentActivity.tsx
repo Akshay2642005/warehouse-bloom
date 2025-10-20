@@ -56,14 +56,14 @@ export function RecentActivity() {
   };
 
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <CardHeader>
         <CardTitle className="text-lg font-semibold flex items-center justify-between">
           <span>Recent Activity</span>
           <button onClick={() => refetch()} disabled={isFetching} className="text-xs underline text-muted-foreground hover:text-foreground disabled:opacity-50">Refresh</button>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 flex-1 overflow-y-auto max-h-[400px]">
         {isLoading && (
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}

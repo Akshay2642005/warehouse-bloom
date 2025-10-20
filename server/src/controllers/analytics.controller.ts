@@ -14,7 +14,7 @@ export const getAnalyticsSummary = async (req: Request, res: Response) => {
     const summary = await AnalyticsService.getSummary({
       from: parseDate(from),
       to: parseDate(to)
-    });
+    }, req.tenantId);
     // Flatten structure so frontend can directly consume fields
     res.json(createResponse({ data: summary, message: 'Analytics summary generated' }));
   } catch (err: any) {

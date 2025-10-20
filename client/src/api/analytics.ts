@@ -1,29 +1,40 @@
-import { axiosInstance } from './axiosInstance';
+// Simple analytics API - will be enhanced when backend is ready
+export const analyticsApi = {
+  getDashboardOverview: async () => {
+    // Mock data for now
+    return {
+      inventory: {
+        totalItems: 100,
+        activeItems: 89,
+        lowStockItems: 5,
+        outOfStockItems: 2
+      },
+      sales: {
+        totalOrders: 156,
+        totalRevenue: 1234500,
+        averageOrderValue: 7915
+      },
+      recentActivity: []
+    };
+  },
 
-export interface AnalyticsSummary {
-  totalRevenueCents: number;
-  totalOrders: number;
-  averageOrderValueCents: number;
-  inventory: {
-    totalItems: number;
-    totalStockQuantity: number;
-    lowStockCount: number;
-  };
-  popularProducts: Array<{
-    id: string;
-    name: string;
-    sku: string;
-    quantitySold: number;
-    percent: number;
-  }>;
-  inventoryTurnover: number;
-  monthlySales: Array<{ month: string; revenueCents: number; orders: number }>;
-  monthlyTurnover: Array<{ month: string; turnover: number }>;
-  supplierPerformance: any[]; // placeholder
-  generatedAt: string;
-}
+  getInventoryAnalytics: async () => {
+    return {
+      totalItems: 100,
+      activeItems: 89,
+      lowStockItems: 5,
+      outOfStockItems: 2,
+      topCategories: []
+    };
+  },
 
-export async function fetchAnalyticsSummary(params?: { from?: string; to?: string }) {
-  const res = await axiosInstance.get<{ success: boolean; data: AnalyticsSummary }>('/analytics/summary', { params });
-  return res.data.data;
-}
+  getSalesAnalytics: async () => {
+    return {
+      totalOrders: 156,
+      totalRevenue: 1234500,
+      averageOrderValue: 7915,
+      dailySales: [],
+      topProducts: []
+    };
+  }
+};

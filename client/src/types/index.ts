@@ -162,6 +162,7 @@ export interface RegisterFormData {
   email: string;
   password: string;
   confirmPassword?: string;
+  plan?: 'BASIC' | 'PRO' | 'ENTERPRISE';
 }
 
 export interface DialogProps {

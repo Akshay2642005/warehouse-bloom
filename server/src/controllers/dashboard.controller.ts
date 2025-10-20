@@ -4,6 +4,9 @@ import { createResponse } from '../utils/apiResponse';
 
 export async function getDashboardStats(req: Request, res: Response): Promise<void> {
   try {
+    const tenantId = req.tenantId;
+    const whereClause = tenantId ? { tenantId } : {};
+    
     const [
       totalItems,
       lowStockItems,
@@ -11,11 +14,12 @@ export async function getDashboardStats(req: Request, res: Response): Promise<vo
       pendingOrders,
       totalValue
     ] = await Promise.all([
-      prisma.item.count(),
-      prisma.item.count({ where: { quantity: { lte: 10 } } }),
-      prisma.order.count(),
-      prisma.order.count({ where: { status: 'PENDING' } }),
+      prisma.item.count({ where: whereClause }),
+      prisma.item.count({ where: { ...whereClause, quantity: { lte: 10 } } }),
+      prisma.order.count({ where: whereClause }),
+      prisma.order.count({ where: { ...whereClause, status: 'PENDING' } }),
       prisma.item.aggregate({
+        where: whereClause,
         _sum: {
           priceCents: true
         }
@@ -44,9 +48,12 @@ export async function getDashboardStats(req: Request, res: Response): Promise<vo
 
 export async function getDashboardAlerts(req: Request, res: Response): Promise<void> {
   try {
+    const tenantId = req.tenantId;
+    const whereClause = tenantId ? { tenantId, quantity: { lte: 10 } } : { quantity: { lte: 10 } };
+    
     // Get low stock items (quantity <= 10)
     const lowStockItems = await prisma.item.findMany({
-      where: { quantity: { lte: 10 } },
+      where: whereClause,
       select: {
         id: true,
         name: true,
@@ -72,19 +79,31 @@ export async function getDashboardAlerts(req: Request, res: Response): Promise<v
 // Recent unified activities (orders, shipments, inventory logs)
 export async function getDashboardActivities(req: Request, res: Response): Promise<void> {
   try {
+    const tenantId = req.tenantId;
+    const whereClause = tenantId ? { tenantId } : {};
     const limit = 20;
+    
     const [orders, shipmentEvents, inventoryLogs] = await Promise.all([
       prisma.order.findMany({
+        where: whereClause,
         select: { id: true, orderNumber: true, status: true, createdAt: true, updatedAt: true },
         orderBy: { createdAt: 'desc' },
         take: limit
       }),
       prisma.shipmentEvent.findMany({
+        where: {
+          shipment: {
+            order: whereClause
+          }
+        },
         select: { id: true, status: true, createdAt: true, shipmentId: true },
         orderBy: { createdAt: 'desc' },
         take: limit
       }),
       prisma.inventoryLog.findMany({
+        where: {
+          item: whereClause
+        },
         select: { id: true, itemId: true, delta: true, reason: true, createdAt: true, item: { select: { name: true, sku: true } } },
         orderBy: { createdAt: 'desc' },
         take: limit
@@ -128,7 +147,13 @@ export async function getDashboardActivities(req: Request, res: Response): Promi
 // Inventory chart data by category
 export async function getInventoryChart(req: Request, res: Response): Promise<void> {
   try {
-    const items = await prisma.item.findMany({ select: { id: true, quantity: true, reorderLevel: true, category: { select: { name: true } } } });
+    const tenantId = req.tenantId;
+    const whereClause = tenantId ? { tenantId } : {};
+    
+    const items = await prisma.item.findMany({ 
+      where: whereClause,
+      select: { id: true, quantity: true, reorderLevel: true, category: { select: { name: true } } } 
+    });
     const categoryMap: Record<string, { inStock: number; lowStock: number; outOfStock: number }> = {};
     for (const item of items) {
       const cat = item.category?.name || 'Uncategorized';

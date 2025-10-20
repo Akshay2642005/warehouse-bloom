@@ -8,11 +8,11 @@ export function InventoryChart() {
   const { data = [], isLoading, isError } = useQuery({ queryKey: ['inventory-category-chart'], queryFn: fetchInventoryCategoryChart, staleTime: 60_000 });
 
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Inventory by Category</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1">
         {isLoading && (
           <div className="space-y-2">
             <Skeleton className="h-6 w-40" />
