@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createItem, getItems, getItemById, updateItemById, deleteItemById, restockItem, getLowStock } from '../controllers/items.controller';
+import { createItem, getItems, getItemById, updateItemById, deleteItemById, restockItem } from '../controllers/items.controller';
 import { requireAuth } from '../middlewares/requireAuth';
 
 export const itemsRouter = Router();
@@ -57,6 +57,3 @@ itemsRouter.delete('/:id', requireAuth, deleteItemById);
  *     tags: [Items]
  */
 itemsRouter.post('/:id/restock', requireAuth, restockItem); 
-
-// Low stock listing
-itemsRouter.get('/low-stock/list', requireAuth, getLowStock);

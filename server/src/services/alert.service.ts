@@ -6,8 +6,8 @@ export class AlertService {
   static async createLowStockAlert(itemId: string, quantity: number): Promise<void> {
     try {
       // Get low stock threshold from settings
-      const thresholdSetting = await prisma.systemSetting.findFirst({
-        where: { key: 'lowStockThreshold', tenantId: null }
+      const thresholdSetting = await prisma.systemSetting.findUnique({
+        where: { key: 'lowStockThreshold' }
       });
       const threshold = parseInt(thresholdSetting?.value || '10');
 
@@ -87,7 +87,7 @@ export class AlertService {
         });
 
         // Check if user has order update notifications enabled
-        const userSetting = await prisma.systemSetting.findFirst({
+        const userSetting = await prisma.systemSetting.findUnique({
           where: { key: `user:${order.userId}:orderUpdates` }
         });
 
@@ -160,11 +160,6 @@ export class AlertService {
         await this.createLowStockAlert(item.id, item.quantity);
       }
     } catch (error) {
-      if ((error as any)?.code === 'P2021') {
-        // Table missing (likely schema not pushed yet) – log at warn level and swallow
-        console.warn('Skipping low stock scan: database schema not applied yet (P2021)');
-        return;
-      }
       console.error('Failed to check items for low stock:', error);
     }
   }

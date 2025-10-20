@@ -19,13 +19,10 @@ export async function getSystemStatus(req: Request, res: Response): Promise<void
     let redisLatency = 0;
     try {
       const redis = getRedis();
-      if (redis) {
-        await redis.ping();
-        redisStatus = 'connected';
-      }
+      await redis.ping();
+      redisStatus = 'connected';
       redisLatency = Date.now() - redisStart;
-    } catch (_err) {
-      // Leave redisStatus as disconnected
+    } catch (error) {
       redisLatency = Date.now() - redisStart;
     }
 
@@ -60,9 +57,6 @@ export async function getSystemStatus(req: Request, res: Response): Promise<void
 
 export async function getSystemMetrics(req: Request, res: Response): Promise<void> {
   try {
-    const tenantId = req.tenantId;
-    const whereClause = tenantId ? { tenantId } : {};
-    
     const [
       userStats,
       itemStats,
@@ -71,19 +65,16 @@ export async function getSystemMetrics(req: Request, res: Response): Promise<voi
     ] = await Promise.all([
       prisma.user.groupBy({
         by: ['role'],
-        where: tenantId ? { tenantId } : {},
         _count: { role: true }
       }),
       prisma.item.aggregate({
-        where: whereClause,
         _count: { id: true },
         _sum: { quantity: true, priceCents: true }
       }),
       prisma.item.aggregate({
-        where: whereClause,
         _sum: { priceCents: true }
       }),
-      prisma.item.count({ where: { ...whereClause, quantity: { lte: 10 } } })
+      prisma.item.count({ where: { quantity: { lte: 10 } } })
     ]);
 
     const totalUsers = userStats.reduce((sum, stat) => sum + stat._count.role, 0);

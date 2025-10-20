@@ -16,8 +16,7 @@ export class AuthService {
       data: {
         email,
         password: passwordHash,
-        role: "USER",
-        isActive: false,
+        role: "user",
       },
       select: {
         id: true,
@@ -32,19 +31,15 @@ export class AuthService {
   /**
    * Finds user by email.
    */
-  static async findUserByEmail(email: string): Promise<{
-    id: string;
-    email: string;
-    role: string;
-    isActive: boolean;
-  } | null> {
+  static async findUserByEmail(
+    email: string,
+  ): Promise<{ id: string; email: string; role: string } | null> {
     return prisma.user.findUnique({
       where: { email },
       select: {
         id: true,
         email: true,
         role: true,
-        isActive: true,
       },
     });
   }
@@ -52,15 +47,9 @@ export class AuthService {
   /**
    * Finds user by email with MFA fields.
    */
-  static async findUserByEmailWithMFA(email: string): Promise<{
-    id: string;
-    email: string;
-    role: string;
-    name: string | null;
-    avatarUrl: string | null;
-    twoFactorEnabled: boolean;
-    twoFactorSecret: string | null;
-  } | null> {
+  static async findUserByEmailWithMFA(
+    email: string,
+  ): Promise<{ id: string; email: string; role: string; name: string | null; avatarUrl: string | null; twoFactorEnabled: boolean; twoFactorSecret: string | null } | null> {
     return prisma.user.findUnique({
       where: { email },
       select: {
@@ -78,15 +67,9 @@ export class AuthService {
   /**
    * Finds user by ID with complete profile.
    */
-  static async findUserById(id: string): Promise<{
-    id: string;
-    email: string;
-    role: string;
-    name: string | null;
-    avatarUrl: string | null;
-    twoFactorEnabled: boolean;
-    isActive: boolean;
-  } | null> {
+  static async findUserById(
+    id: string,
+  ): Promise<{ id: string; email: string; role: string; name: string | null; avatarUrl: string | null; twoFactorEnabled: boolean } | null> {
     return prisma.user.findUnique({
       where: { id },
       select: {
@@ -96,7 +79,6 @@ export class AuthService {
         name: true,
         avatarUrl: true,
         twoFactorEnabled: true,
-        isActive: true,
       },
     });
   }
@@ -107,12 +89,7 @@ export class AuthService {
   static async validateCredentials(
     email: string,
     password: string,
-  ): Promise<{
-    id: string;
-    email: string;
-    role: string;
-    isActive: boolean;
-  } | null> {
+  ): Promise<{ id: string; email: string; role: string } | null> {
     const user = await prisma.user.findUnique({
       where: { email },
       select: {
@@ -120,7 +97,6 @@ export class AuthService {
         email: true,
         password: true,
         role: true,
-        isActive: true,
       },
     });
 
@@ -133,7 +109,6 @@ export class AuthService {
       id: user.id,
       email: user.email,
       role: user.role,
-      isActive: user.isActive,
     };
   }
 }

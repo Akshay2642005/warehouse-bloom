@@ -17,23 +17,18 @@ const createOrderSchema = z.object({
 const updateStatusSchema = z.object({ status: z.enum(['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED']) });
 
 export async function listOrders(req: Request, res: Response): Promise<void> {
-  try {
-    const parsed = listSchema.parse(req.query);
-    const { page, pageSize: rawPageSize, search, status } = parsed;
-    const pageSize = Math.min(rawPageSize, 50);
-    const result = await OrdersService.listOrders({ page, pageSize, search, status });
-    res.set({
-      'Cache-Control': 'no-cache, must-revalidate',
-      'ETag': `"orders-${Date.now()}-${JSON.stringify({ page, pageSize, search, status })}"`
-    });
-    res.status(200).json({ success: true, data: result });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      res.status(400).json({ success: false, message: 'Validation failed', errors: error.flatten?.() });
-      return;
-    }
-    throw error;
-  }
+  const parsed = listSchema.parse(req.query);
+  const { page, pageSize: rawPageSize, search, status } = parsed;
+  const pageSize = Math.min(rawPageSize, 50);
+  const result = await OrdersService.listOrders({ page, pageSize, search, status });
+  
+  // Set cache headers for immediate updates
+  res.set({
+    'Cache-Control': 'no-cache, must-revalidate', // Force revalidation
+    'ETag': `"orders-${Date.now()}-${JSON.stringify({ page, pageSize, search, status })}"`
+  });
+  
+  res.status(200).json({ success: true, data: result });
 }
 
 export async function getOrder(req: Request, res: Response): Promise<void> {
@@ -44,40 +39,19 @@ export async function getOrder(req: Request, res: Response): Promise<void> {
 }
 
 export async function createOrder(req: Request, res: Response): Promise<void> {
-  try {
-    const { items } = createOrderSchema.parse(req.body);
-    const userId = req.user!.id;
-    const order = await OrdersService.createOrder({ userId, items });
-    res.status(201).json({ success: true, data: { order } });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      res.status(400).json({ success: false, message: 'Validation failed', errors: error.flatten?.() });
-      return;
-    }
-    if (error instanceof Error) {
-      res.status(400).json({ success: false, message: error.message });
-      return;
-    }
-    throw error;
-  }
+  const { items } = createOrderSchema.parse(req.body);
+  const userId = req.user!.id;
+  const order = await OrdersService.createOrder({ userId, items });
+  res.status(201).json({ success: true, data: { order } });
 }
 
 export async function updateOrderStatus(req: Request, res: Response): Promise<void> {
-  try {
-    const { id } = z.object({ id: z.string() }).parse(req.params);
-    const { status } = updateStatusSchema.parse(req.body);
-    await OrdersService.updateStatus(id, status as any);
-    await AlertService.createOrderAlert(id, status);
-    res.status(200).json({ success: true, message: 'Order status updated' });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      res.status(400).json({ success: false, message: 'Validation failed', errors: error.flatten?.() });
-      return;
-    }
-    if (error instanceof Error) {
-      res.status(400).json({ success: false, message: error.message });
-      return;
-    }
-    throw error;
-  }
+  const { id } = z.object({ id: z.string() }).parse(req.params);
+  const { status } = updateStatusSchema.parse(req.body);
+  await OrdersService.updateStatus(id, status as any);
+  
+  // Create alert for order status change
+  await AlertService.createOrderAlert(id, status);
+  
+  res.status(200).json({ success: true, message: 'Order status updated' });
 } 

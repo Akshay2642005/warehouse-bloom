@@ -6,12 +6,12 @@ export type { User, ApiResponse };
 /**
  * Registers a new user with the backend.
  */
-export async function registerUser(data: RegisterFormData): Promise<{ user: User; payment?: { checkoutId: string; checkoutUrl: string; amount: number } }> {
-  const response = await axiosInstance.post<ApiResponse<{ user: User; payment?: { checkoutId: string; checkoutUrl: string; amount: number } }>>(
+export async function registerUser(data: RegisterFormData): Promise<User> {
+  const response = await axiosInstance.post<ApiResponse<{ user: User }>>(
     "/auth/register",
     data,
   );
-  return response.data.data!;
+  return response.data.data!.user;
 }
 
 /**

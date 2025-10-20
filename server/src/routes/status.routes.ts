@@ -21,17 +21,8 @@ statusRouter.get('/', async (req, res) => {
     // Check Redis connection
     const redisStart = Date.now();
     const redis = getRedis();
-    let redisLatency = 0;
-    let redisStatus: 'connected' | 'disconnected' = 'disconnected';
-    if (redis) {
-      try {
-        await redis.ping();
-        redisStatus = 'connected';
-      } catch {
-        // leave disconnected
-      }
-      redisLatency = Date.now() - redisStart;
-    }
+    await redis.ping();
+    const redisLatency = Date.now() - redisStart;
 
     // Get basic stats
     const [userCount, itemCount] = await Promise.all([
@@ -54,7 +45,7 @@ statusRouter.get('/', async (req, res) => {
             latency: `${dbLatency}ms`
           },
           redis: {
-            status: redisStatus,
+            status: 'connected',
             latency: `${redisLatency}ms`
           }
         },

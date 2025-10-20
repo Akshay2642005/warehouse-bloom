@@ -141,23 +141,15 @@ export class OrdersService {
     });
 
     // Immediately invalidate all related caches
-    if (process.env.NODE_ENV !== 'test') {
-      try {
-        await SearchService.invalidateCache('items');
-        await SearchService.invalidateCache('orders');
-        // Also clear any general cache patterns that might affect orders
-        const { getRedis } = require('../utils/redis');
-        const redis = getRedis();
-        if (redis) {
-          const keys = await redis.keys('search:orders:*');
-          if (keys.length) {
-            await redis.del(keys);
-          }
-        }
-        logger.info('Cache invalidated after order creation');
-      } catch (error) {
-        logger.warn('Failed to invalidate cache after order creation', { error: error instanceof Error ? error.message : 'unknown' });
-      }
+    try {
+      await SearchService.invalidateCache('items');
+      await SearchService.invalidateCache('orders');
+      // Also clear any general cache patterns that might affect orders
+      const redis = require('../utils/redis').getRedis();
+      await redis.del('search:orders:*');
+      logger.info('Cache invalidated after order creation');
+    } catch (error) {
+      logger.warn('Failed to invalidate cache after order creation', { error: error.message });
     }
 
     return result;
@@ -166,12 +158,11 @@ export class OrdersService {
   static async updateStatus(id: string, status: OrderStatus) {
     const result = await prisma.order.update({ where: { id }, data: { status } });
     
-    if (process.env.NODE_ENV !== 'test') {
-      try {
-        await SearchService.invalidateCache('orders');
-      } catch (error) {
-        logger.warn('Failed to invalidate cache after status update', { error: error instanceof Error ? error.message : 'unknown' });
-      }
+    // Invalidate orders cache
+    try {
+      await SearchService.invalidateCache('orders');
+    } catch (error) {
+      logger.warn('Failed to invalidate cache after status update', { error: error.message });
     }
     
     return result;

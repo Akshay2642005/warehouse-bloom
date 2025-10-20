@@ -6,7 +6,6 @@ export interface UpdateUserData {
   role?: string;
   name?: string;
   avatarUrl?: string;
-  phoneNumber?: string;
   twoFactorEnabled?: boolean;
 }
 
@@ -25,8 +24,6 @@ export class UserService {
         role: true,
         name: true,
         avatarUrl: true,
-        // @ts-ignore generated after migration
-        phoneNumber: true,
         twoFactorEnabled: true,
         createdAt: true,
         updatedAt: true,
@@ -52,8 +49,6 @@ export class UserService {
         role: true,
         name: true,
         avatarUrl: true,
-        // @ts-ignore generated after migration
-        phoneNumber: true,
         twoFactorEnabled: true,
         twoFactorSecret: true,
         createdAt: true,
@@ -77,9 +72,7 @@ export class UserService {
           where: { email: data.email }
         });
         if (existingUser && existingUser.id !== id) {
-          const err: any = new Error('EMAIL_EXISTS');
-          err.code = 'EMAIL_EXISTS';
-          throw err;
+          throw new Error('Email already exists');
         }
       }
 
@@ -92,17 +85,12 @@ export class UserService {
           role: true,
           name: true,
           avatarUrl: true,
-          // @ts-ignore generated after migration
-          phoneNumber: true,
           twoFactorEnabled: true,
           createdAt: true,
           updatedAt: true
         }
       });
-    } catch (error: any) {
-      if (error?.code === 'EMAIL_EXISTS') {
-        throw error; // let controller map to 409
-      }
+    } catch (error) {
       return null;
     }
   }
@@ -148,8 +136,6 @@ export class UserService {
       select: { id: true, twoFactorSecret: true }
     });
   }
-
-  // Backup codes persistence skipped (schema not present). Could be added later.
 
   /**
    * Get user with secret (for 2FA verification)

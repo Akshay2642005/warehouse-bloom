@@ -11,16 +11,8 @@ const createShipmentSchema = z.object({
 });
 
 const updateStatusSchema = z.object({
-  status: z.enum(['Processing','In Transit','Delivered','Delayed','Cancelled'])
+  status: z.string()
 });
-
-const updateShipmentSchema = z.object({
-  carrier: z.string().min(1).optional(),
-  trackingNumber: z.string().min(1).optional(),
-  destination: z.string().min(1).optional(),
-  estimatedDelivery: z.string().optional(),
-  status: z.enum(['Processing','In Transit','Delivered','Delayed','Cancelled']).optional()
-}).refine(data => Object.keys(data).length > 0, { message: 'At least one field required' });
 
 const listSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -76,23 +68,5 @@ export async function updateShipmentStatus(req: Request, res: Response): Promise
   await ShipmentService.updateShipmentStatus(id, status);
   
   res.json({ success: true, message: 'Shipment and order status updated' });
-}
-
-export async function updateShipment(req: Request, res: Response): Promise<void> {
-  const { id } = z.object({ id: z.string() }).parse(req.params);
-  const body = updateShipmentSchema.parse(req.body);
-  const updated = await ShipmentService.updateShipment(id, body);
-  res.json({ success: true, data: { shipment: updated }, message: 'Shipment updated' });
-}
-
-export async function deleteShipment(req: Request, res: Response): Promise<void> {
-  const { id } = z.object({ id: z.string() }).parse(req.params);
-  await ShipmentService.deleteShipment(id);
-  res.status(204).send();
-}
-
-export async function getShipmentStats(_req: Request, res: Response): Promise<void> {
-  const stats = await ShipmentService.getStats();
-  res.json({ success: true, data: stats });
 }
 

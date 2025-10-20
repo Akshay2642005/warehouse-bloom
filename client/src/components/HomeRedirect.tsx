@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUser } from '../contexts/UserContext';
+import { useAuth } from '../contexts/AuthContext';
 import Home from '../pages/Home';
 
 /**
@@ -8,7 +8,7 @@ import Home from '../pages/Home';
  * and shows homepage for unauthenticated users
  */
 export function HomeRedirect() {
-  const { user, loading } = useUser();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {

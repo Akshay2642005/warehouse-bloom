@@ -1,4 +1,4 @@
-import { Package, TrendingUp, AlertTriangle, DollarSign, CreditCard } from "lucide-react";
+import { Package, TrendingUp, AlertTriangle, DollarSign } from "lucide-react";
 import { StatsCard } from "@/components/StatsCard";
 import { RecentActivity } from "@/components/RecentActivity";
 import { InventoryChart } from "@/components/InventoryChart";
@@ -19,15 +19,9 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here's what's happening in your warehouse.</p>
-        </div>
-        <a href="/billing" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-          <CreditCard className="w-4 h-4" />
-          Manage Billing
-        </a>
+      <div>
+        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+        <p className="text-muted-foreground">Welcome back! Here's what's happening in your warehouse.</p>
       </div>
 
       {/* Stats Grid */}
@@ -68,10 +62,10 @@ export default function Dashboard() {
 
       {/* Charts and Tables */}
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 h-full">
+        <div className="lg:col-span-2">
           <InventoryChart />
         </div>
-        <div className="h-full">
+        <div>
           <RecentActivity />
         </div>
       </div>

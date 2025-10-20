@@ -16,19 +16,19 @@ export async function fetchUsers(): Promise<User[]> {
   return response.data.data.users;
 }
 
-export async function updateUserPassword(data: { currentPassword: string; newPassword: string; confirmPassword?: string }) {
+export async function updateUserPassword(data: { currentPassword: string; newPassword: string }) {
   const response = await axiosInstance.put('/user/password', data);
-  return response.data; // { success, message }
+  return response.data;
 }
 
-export async function updateUserProfile(data: { name?: string; email?: string; avatarUrl?: string; confirmEmail?: string }) {
+export async function updateUserProfile(data: { name?: string; email?: string }) {
   const response = await axiosInstance.put('/user/profile', data);
-  return response.data; // return full response including data.user
+  return response.data;
 }
 
 export async function setupTwoFactor() {
   const response = await axiosInstance.post('/user/2fa/setup');
-  return response.data.data; // includes secret, qrCode, backupCodes (not persisted yet)
+  return response.data.data;
 }
 
 export async function verifyTwoFactor(token: string) {
