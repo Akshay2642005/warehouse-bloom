@@ -27,6 +27,7 @@ export function signToken(payload: JwtPayload): string {
  * Verifies a JWT and returns its payload.
  */
 export function verifyToken(token: string): JwtPayload {
-  const secret: Secret = config.JWT_SECRET!;
+  // Use same fallback logic as signToken to avoid mismatch in dev when JWT_SECRET is undefined
+  const secret: Secret = process.env.JWT_SECRET ?? config.JWT_SECRET ?? 'dev_secret';
   return jwt.verify(token, secret) as JwtPayload;
 }

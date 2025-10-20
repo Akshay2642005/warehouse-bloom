@@ -15,10 +15,11 @@ export class CacheManager {
   static async get<T>(key: string): Promise<T | null> {
     try {
       const redis = getRedis();
+      if (!redis) return null;
       const cached = await redis.get(key);
       return cached ? JSON.parse(cached) : null;
     } catch (error) {
-      logger.warn('Cache get failed', { key, error: error.message });
+      logger.warn('Cache get failed', { key, error: error instanceof Error ? error.message : 'unknown' });
       return null;
     }
   }
@@ -29,9 +30,10 @@ export class CacheManager {
   static async set(key: string, data: any, ttl: number = this.DEFAULT_TTL): Promise<void> {
     try {
       const redis = getRedis();
+      if (!redis) return;
       await redis.setEx(key, ttl, JSON.stringify(data));
     } catch (error) {
-      logger.warn('Cache set failed', { key, error: error.message });
+      logger.warn('Cache set failed', { key, error: error instanceof Error ? error.message : 'unknown' });
     }
   }
 
@@ -41,9 +43,10 @@ export class CacheManager {
   static async del(key: string): Promise<void> {
     try {
       const redis = getRedis();
+      if (!redis) return;
       await redis.del(key);
     } catch (error) {
-      logger.warn('Cache delete failed', { key, error: error.message });
+      logger.warn('Cache delete failed', { key, error: error instanceof Error ? error.message : 'unknown' });
     }
   }
 
@@ -53,13 +56,14 @@ export class CacheManager {
   static async delPattern(pattern: string): Promise<void> {
     try {
       const redis = getRedis();
+      if (!redis) return;
       const keys = await redis.keys(pattern);
       if (keys.length > 0) {
         await redis.del(keys);
         logger.info(`Deleted ${keys.length} cache keys matching pattern: ${pattern}`);
       }
     } catch (error) {
-      logger.warn('Cache pattern delete failed', { pattern, error: error.message });
+      logger.warn('Cache pattern delete failed', { pattern, error: error instanceof Error ? error.message : 'unknown' });
     }
   }
 
@@ -87,13 +91,14 @@ export class CacheManager {
   static async increment(key: string, ttl: number = this.DEFAULT_TTL): Promise<number> {
     try {
       const redis = getRedis();
+      if (!redis) return 1;
       const count = await redis.incr(key);
       if (count === 1) {
         await redis.expire(key, ttl);
       }
       return count;
     } catch (error) {
-      logger.warn('Cache increment failed', { key, error: error.message });
+      logger.warn('Cache increment failed', { key, error: error instanceof Error ? error.message : 'unknown' });
       return 1;
     }
   }
@@ -104,10 +109,12 @@ export class CacheManager {
   static async setNX(key: string, data: any, ttl: number = this.DEFAULT_TTL): Promise<boolean> {
     try {
       const redis = getRedis();
-      const result = await redis.set(key, JSON.stringify(data), 'EX', ttl, 'NX');
+      if (!redis) return false;
+      // Redis v5 client supports options object for set
+      const result = await redis.set(key, JSON.stringify(data), { EX: ttl, NX: true });
       return result === 'OK';
     } catch (error) {
-      logger.warn('Cache setNX failed', { key, error: error.message });
+      logger.warn('Cache setNX failed', { key, error: error instanceof Error ? error.message : 'unknown' });
       return false;
     }
   }
@@ -118,10 +125,11 @@ export class CacheManager {
   static async mget<T>(keys: string[]): Promise<(T | null)[]> {
     try {
       const redis = getRedis();
+      if (!redis) return keys.map(() => null);
       const values = await redis.mGet(keys);
       return values.map(value => value ? JSON.parse(value) : null);
     } catch (error) {
-      logger.warn('Cache mget failed', { keys, error: error.message });
+      logger.warn('Cache mget failed', { keys, error: error instanceof Error ? error.message : 'unknown' });
       return keys.map(() => null);
     }
   }
@@ -132,15 +140,14 @@ export class CacheManager {
   static async mset(keyValuePairs: Array<[string, any]>, ttl: number = this.DEFAULT_TTL): Promise<void> {
     try {
       const redis = getRedis();
+      if (!redis) return;
       const pipeline = redis.multi();
-      
       keyValuePairs.forEach(([key, value]) => {
         pipeline.setEx(key, ttl, JSON.stringify(value));
       });
-      
       await pipeline.exec();
     } catch (error) {
-      logger.warn('Cache mset failed', { error: error.message });
+      logger.warn('Cache mset failed', { error: error instanceof Error ? error.message : 'unknown' });
     }
   }
 
@@ -156,7 +163,7 @@ export class CacheManager {
         await this.set(key, data, ttl);
         logger.debug(`Cache warmed: ${key}`);
       } catch (error) {
-        logger.warn(`Cache warming failed for ${key}`, { error: error.message });
+        logger.warn(`Cache warming failed for ${key}`, { error: error instanceof Error ? error.message : 'unknown' });
       }
     });
 
@@ -170,16 +177,16 @@ export class CacheManager {
   static async getStats(): Promise<any> {
     try {
       const redis = getRedis();
+      if (!redis) return null;
       const info = await redis.info('memory');
       const keyspace = await redis.info('keyspace');
-      
       return {
         memory: info,
         keyspace: keyspace,
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      logger.warn('Failed to get cache stats', { error: error.message });
+      logger.warn('Failed to get cache stats', { error: error instanceof Error ? error.message : 'unknown' });
       return null;
     }
   }

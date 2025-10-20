@@ -27,6 +27,7 @@ export interface UserProfile extends User {
 export interface TwoFactorSetup {
   secret: string;
   qrCode: string;
+  backupCodes?: string[];
 }
 
 export interface UserStats {
@@ -80,11 +81,14 @@ export interface UpdateUserData {
   name?: string;
   avatarUrl?: string;
   role?: string;
+  confirmEmail?: string;
+  phoneNumber?: string;
 }
 
 export interface UpdatePasswordData {
   currentPassword: string;
   newPassword: string;
+  confirmPassword?: string;
 }
 
 export type OrderStatus = 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
@@ -182,4 +186,22 @@ export interface QueryParams {
   pageSize?: number;
   q?: string;
   status?: string;
+}
+
+// Dashboard activity feed item returned by /dashboard/activities
+export interface DashboardActivity {
+  id: string;
+  type: string; // 'order' | 'shipment' | 'inventory' | etc.
+  title: string;
+  description: string;
+  status: string; // mapped to UI badge variants (success | warning | error | info)
+  createdAt: string;
+}
+
+// Inventory chart row returned by /dashboard/charts/inventory
+export interface InventoryCategoryRow {
+  name: string;
+  inStock: number;
+  lowStock: number;
+  outOfStock: number;
 }

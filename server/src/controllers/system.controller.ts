@@ -19,10 +19,13 @@ export async function getSystemStatus(req: Request, res: Response): Promise<void
     let redisLatency = 0;
     try {
       const redis = getRedis();
-      await redis.ping();
-      redisStatus = 'connected';
+      if (redis) {
+        await redis.ping();
+        redisStatus = 'connected';
+      }
       redisLatency = Date.now() - redisStart;
-    } catch (error) {
+    } catch (_err) {
+      // Leave redisStatus as disconnected
       redisLatency = Date.now() - redisStart;
     }
 

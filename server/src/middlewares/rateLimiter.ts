@@ -66,7 +66,14 @@ class RedisStore {
 /**
  * Production-grade rate limiters with Redis backing
  */
-export const rateLimiters = {
+const passThrough = (req: any, _res: any, next: any) => next();
+
+export const rateLimiters = process.env.NODE_ENV === 'test' ? {
+  auth: passThrough,
+  api: passThrough,
+  search: passThrough,
+  heavy: passThrough
+} : {
   // Strict rate limiting for auth endpoints
   auth: rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -113,11 +120,12 @@ export const rateLimiters = {
  * Creates a rate limiter middleware instance with sensible defaults.
  */
 export function createRateLimiter(options?: { windowMs?: number; max?: number; prefix?: string }) {
+  if (process.env.NODE_ENV === 'test') return passThrough as any;
   return rateLimit({
-    windowMs: options?.windowMs ?? (15 * 60 * 1000),
-    max: options?.max ?? 100,
-    standardHeaders: true,
-    legacyHeaders: false,
-    store: new RedisStore(options?.prefix) as any
-  });
-} 
+      windowMs: options?.windowMs ?? (15 * 60 * 1000),
+      max: options?.max ?? 100,
+      standardHeaders: true,
+      legacyHeaders: false,
+      store: new RedisStore(options?.prefix) as any
+    });
+}

@@ -160,6 +160,11 @@ export class AlertService {
         await this.createLowStockAlert(item.id, item.quantity);
       }
     } catch (error) {
+      if ((error as any)?.code === 'P2021') {
+        // Table missing (likely schema not pushed yet) – log at warn level and swallow
+        console.warn('Skipping low stock scan: database schema not applied yet (P2021)');
+        return;
+      }
       console.error('Failed to check items for low stock:', error);
     }
   }

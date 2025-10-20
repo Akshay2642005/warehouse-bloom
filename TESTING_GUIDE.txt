@@ -1,0 +1,194 @@
+Warehouse Bloom Testing Guide
+=============================
+
+This guide covers testing for:
+1. Authentication & 401 Fixes
+2. User Profile, Password Update, and 2FA
+3. Staff Management & Invitations
+4. Shipping CRUD & Stats
+5. Inventory Low Stock Listing
+6. Analytics Summary & Charts
+7. Invitation Acceptance Edge Cases
+8. Database Index & Performance Spot Checks
+
+Prerequisites
+-------------
+- Backend running on http://localhost:4000
+- Frontend running on http://localhost:5173
+- .env configured with CLIENT_ORIGIN and JWT_SECRET
+- Database migrated with latest schema (run: npx prisma db push)
+
+Section 1: Auth & 401 Fixes
+---------------------------
+1. Open browser DevTools (Network tab).
+2. Attempt to access /dashboard while logged out → should redirect to /login.
+3. Log in with valid credentials.
+4. Observe request to /api/auth/login:
+   - Response status: 200
+   - Set-Cookie: token=... present
+   - Response JSON contains token
+5. Subsequent API call /api/items returns 200 (not 401) with Authorization header attached.
+6. Clear localStorage auth_token manually and trigger a protected request → you should get 401 and redirect to /login.
+7. Confirm CORS preflight (OPTIONS) succeeds with 204/200.
+
+Section 2: Profile, Password, 2FA
+---------------------------------
+1. Navigate to /profile after login; current user data loads.
+2. Click Edit Profile:
+   - Change name and avatar URL
+   - Save → toast: Profile updated successfully
+   - Data persists after refresh (/auth/me).
+3. Email change:
+   - Set a new unique email, Save → success (if unique)
+   - Attempt to change to existing user's email → toast error (409 Email already in use).
+4. Password update:
+   - Enter wrong current password → error toast (Invalid current password)
+   - Enter strong new password (e.g. GoodPass123) and confirm → success toast
+   - Log out and log in using new password.
+5. 2FA Setup:
+   - Click Setup 2FA → dialog shows QR + secret + backup codes list
+   - Scan QR in authenticator app
+   - Enter 6-digit code → success, twoFactorEnabled becomes true
+   - Log out; log in again → should require MFA step
+   - Disable 2FA → state resets.
+
+Section 3: Staff Management & Invitations
+-----------------------------------------
+1. Log in as admin user.
+2. Navigate to /staff.
+3. Metrics cards show counts (Total Users, Admins, etc.).
+4. Click Invite User:
+   - Enter email (e.g. newstaff@example.com), select role user, Send Invitation
+   - Invitation appears in Recent Invitations list.
+5. Role Editing:
+   - Click edit icon beside a user’s role → select admin/user → Save → toast success
+6. Delete User:
+   - Click Del on a non-critical test user → removed from list after refresh.
+7. Invitation Accept (manual):
+   - From Network tab find POST /api/invitations (response includes token)
+   - Use curl/Postman: POST /api/invitations/accept { token } → returns email & role (simulation only; no auto-user creation in this iteration).
+8. Non-admin Access:
+   - Log in as standard user → /staff should either hide admin-only controls or return forbidden on invite attempts (create invitation is admin protected).
+
+Section 4: Shipping CRUD & Stats
+--------------------------------
+1. Navigate to /shipping page (ensure logged in).
+2. Create Shipment (from existing order if dialog allows) or verify existing records load.
+3. Update Shipment:
+   - Change status (e.g. Processing → In Transit → Delivered)
+   - Save → toast success; table row updates.
+4. Delete Shipment (if delete control exposed or via API):
+   - DELETE /api/shipments/:id → 204
+   - Refresh list → shipment absent.
+5. Stats Endpoint:
+   - Observe GET /api/shipments/stats returns counts for statuses (processing, inTransit, delivered, delayed).
+   - Numbers on page match payload.
+6. Edge Cases:
+   - Update with invalid ID → 404
+   - Delete already deleted ID → 404
+
+Section 5: Inventory Low Stock Listing
+--------------------------------------
+1. Trigger low stock route: GET /api/items/low-stock/list
+   - Response 200 with items array (quantity <= 10 by server threshold).
+2. Lower quantity of an item via PUT /api/items/:id → set quantity just below threshold (e.g. 9) → re-fetch list; item appears.
+3. Restock item above threshold → item should disappear from low stock list.
+4. Confirm alerts (if configured) were created for critical low levels.
+
+Section 6: Analytics Summary & Charts
+-------------------------------------
+1. Visit /analytics while authenticated.
+2. Loading State:
+   - Initial skeleton or ellipsis placeholders show until request resolves.
+3. Network Call:
+   - GET /api/analytics/summary returns 200 with structure:
+     { data: { summary: { totalRevenueCents, totalOrders, averageOrderValueCents, inventory, popularProducts, monthlySales[] }}}
+4. Metrics:
+   - Total Revenue matches sum of Order.totalCents (within selected date range if filters applied).
+   - Average Order Value = totalRevenueCents / totalOrders (rounded in UI).
+5. Date Filters:
+   - Set from/to → Apply → network request includes query params; numbers adjust (smaller subset).
+6. Popular Products:
+   - List size <= 5; each has quantitySold and percent summing approximately ≤ 100.
+7. Monthly Sales Chart:
+   - Months sorted ascending; revenueCents aggregated per month.
+8. Inventory Turnover:
+   - Value present (approximation); not NaN or negative.
+9. Error Case:
+   - Temporarily break network (offline) → UI shows error message.
+
+Section 7: Invitation Acceptance Edge Cases
+-------------------------------------------
+1. Duplicate Active Invite Prevention:
+   - Create invitation for email A.
+   - Create again for same email before expiry → existing returned (token stable or role updated if changed).
+2. Expired Invite:
+   - Manually update expiresAt in DB to past; POST /api/invitations/accept → 400 with message 'Invitation expired'.
+3. Already Used:
+   - Accept valid token once → second accept returns 400 'Invitation already used'.
+4. Invalid Token:
+   - POST accept with random token → 400 'Invalid or expired invitation' (or mapped message sequence).
+5. Purge Simulation:
+   - Run purgeExpired helper manually (Node REPL) → expired unaccepted invites removed.
+
+Section 8: Database Index & Performance Spot Checks
+---------------------------------------------------
+1. Confirm new indexes exist (psql): \d+ "Order" should list indexes on createdAt, status.
+2. Large Query Simulation:
+   - Run repeated analytics summary calls; ensure response time remains acceptable (< ~300ms locally).
+3. Verify OrderItem index on itemId used:
+   - EXPLAIN SELECT * FROM "OrderItem" WHERE "itemId" = '<someId>' → should show Index Scan.
+4. Shipment status filtering (future stats expansion) benefits from status index; test with EXPLAIN SELECT count(*) FROM "Shipment" WHERE status='Processing';
+5. Regression: ensure indexes do not break writes (create order, create shipment still succeed).
+
+Audit & Security Notes
+----------------------
+- All protected routes require valid JWT (cookie or Authorization header).
+- Invitation endpoints: POST & GET require admin; accept is public to allow onboarding flow.
+- 2FA tokens validated with speakeasy and cookie set upon verification.
+
+Regression Checklist
+--------------------
+[ ] Login works and sets cookie + localStorage token
+[ ] Protected endpoints return 200 when authenticated
+[ ] Profile update persists and returns updated fields
+[ ] Password change invalidates only knowledge of old password
+[ ] 2FA enforce second factor on login when enabled
+[ ] Staff invitation creation works (admin only)
+[ ] Role changes persist and reflect in /users list
+[ ] Deleted user no longer retrievable via /api/user/:id
+[ ] Shipment create/update/delete cycle works
+[ ] Shipment stats reflect underlying data
+[ ] Low stock list returns expected items
+[ ] Analytics summary returns expected shape
+[ ] Popular products list stable and capped at 5
+[ ] Invitation acceptance handles used / expired / invalid tokens gracefully
+[ ] No 5xx logs during normal flows
+[ ] Added indexes present in database
+
+Troubleshooting
+---------------
+401 on all requests:
+- Check Authorization header presence.
+- Ensure SameSite is lax in dev, not none without HTTPS.
+- Verify JWT_SECRET consistency.
+
+Invitation model missing errors:
+- Run: npx prisma generate && npx prisma db push
+
+2FA verification fails:
+- Confirm device time sync; widen window or re-initiate setup.
+
+Next Improvements (Not Implemented Yet)
+---------------------------------------
+- Persist backup codes (requires schema change)
+- Soft delete / active flag for users
+- Email delivery integration for invitations
+- Audit log table for role & security events
+- Materialized views for monthly sales & product popularity
+- Supplier & Category models for richer analytics
+- Real inventory turnover calculation via movement ledger
+- Automatic invitation email dispatch
+- Low stock dashboard widget consumption of new endpoint
+
+End of Guide
