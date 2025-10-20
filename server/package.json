@@ -10,7 +10,9 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "db:install-triggers": "psql $DATABASE_URL -f prisma/triggers.sql",
+    "db:remove-triggers": "psql $DATABASE_URL -f prisma/remove-triggers.sql"
   },
   "dependencies": {
     "@prisma/client": "^5.7.0",
