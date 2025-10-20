@@ -16,6 +16,29 @@ import { requireAdmin } from '../middlewares/requireAdmin';
 export const userRouter = Router();
 
 /**
+ * Current authenticated user convenience routes (no id in path)
+ */
+userRouter.get('/profile', requireAuth, (req, res) => {
+  // Reuse getUserById logic by injecting current user id
+  req.params.id = req.user!.id;
+  getUserById(req, res);
+});
+
+userRouter.put('/profile', requireAuth, (req, res) => {
+  req.params.id = req.user!.id;
+  updateUser(req, res);
+});
+userRouter.patch('/profile', requireAuth, (req, res) => {
+  req.params.id = req.user!.id;
+  updateUser(req, res);
+});
+
+userRouter.put('/password', requireAuth, (req, res) => {
+  req.params.id = req.user!.id;
+  updatePassword(req, res);
+});
+
+/**
  * Get all users (admin only)
  */
 userRouter.get('/', requireAuth, requireAdmin, getUsers);
@@ -34,6 +57,7 @@ userRouter.get('/:id', requireAuth, getUserById);
  * Update user profile
  */
 userRouter.put('/:id', requireAuth, updateUser);
+userRouter.patch('/:id', requireAuth, updateUser);
 
 /**
  * Update user password

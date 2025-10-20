@@ -44,7 +44,7 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Home />} />
+      <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
 
@@ -53,7 +53,7 @@ function AppRoutes() {
       <Route path="/inventory" element={user ? <Layout><Inventory /></Layout> : <Navigate to="/login" replace />} />
       <Route path="/orders" element={user ? <Layout><Orders /></Layout> : <Navigate to="/login" replace />} />
       <Route path="/shipping" element={user ? <Layout><Shipping /></Layout> : <Navigate to="/login" replace />} />
-      <Route path="/analytics" element={user ? <Layout><Analytics /></Layout> : <Navigate to="/login" replace />} />
+      <Route path="/analytics" element={<Layout><Analytics /></Layout>} />
       <Route path="/alerts" element={user ? <Layout><Alerts /></Layout> : <Navigate to="/login" replace />} />
       <Route path="/staff" element={user ? <Layout><Staff /></Layout> : <Navigate to="/login" replace />} />
       <Route path="/settings" element={user ? <Layout><SettingsPage /></Layout> : <Navigate to="/login" replace />} />

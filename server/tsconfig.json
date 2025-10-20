@@ -14,7 +14,8 @@
     "resolveJsonModule": true,
     "moduleResolution": "Node",
     "types": [
-      "node",
+    "node",
+    "jest",
       "express"
     ],
     "typeRoots": [

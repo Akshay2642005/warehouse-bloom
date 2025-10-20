@@ -22,43 +22,64 @@ async function bootstrap(): Promise<void> {
     
     await prisma.$connect();
 
-    // Start PG LISTEN for alert notifications
-    const databaseUrl = process.env.DATABASE_URL!;
-    await connectPgListener(databaseUrl);
-    onPgNotification(async (payload) => {
-      try {
-        const redis = getRedis();
-        if (redis) {
-          const event = { type: 'alert', data: payload };
-          await redis.publish('events', JSON.stringify(event));
-        }
+    // Verify database schema exists before proceeding (helpful in dev when db not yet pushed)
+    let schemaReady = true;
+    try {
+      await prisma.user.findFirst({ select: { id: true } });
+    } catch (err: any) {
+      if (err?.code === 'P2021') {
+        schemaReady = false;
+        logger.error('Database schema is missing (tables not found). Run:\n  npx prisma db push\n  (optionally) npm run db:seed', { code: err.code });
+      } else {
+        logger.error('Unexpected error verifying schema', { message: err?.message });
+      }
+    }
 
-        // Send mail for critical/high alerts (if SMTP configured)
-        if (process.env.SMTP_HOST) {
-          const severity = String(payload.severity || 'LOW');
-          if (severity === 'CRITICAL' || severity === 'HIGH') {
-            await sendMail({
-              to: process.env.ALERTS_TO || process.env.MAIL_TO || 'admin@example.com',
-              subject: `[${severity}] ${payload.type} - ${payload.message}`,
-              text: `Alert: ${payload.message} (itemId=${payload.itemId || 'N/A'})\nTime: ${payload.createdAt}`,
-            });
+    if (schemaReady) {
+      // Start PG LISTEN for alert notifications only if schema exists
+      const databaseUrl = process.env.DATABASE_URL!;
+      try {
+        await connectPgListener(databaseUrl);
+        onPgNotification(async (payload) => {
+          try {
+            const redis = getRedis();
+            if (redis) {
+              const event = { type: 'alert', data: payload };
+              await redis.publish('events', JSON.stringify(event));
+            }
+
+            if (process.env.SMTP_HOST) {
+              const severity = String(payload.severity || 'LOW');
+              if (severity === 'CRITICAL' || severity === 'HIGH') {
+                await sendMail({
+                  to: process.env.ALERTS_TO || process.env.MAIL_TO || 'admin@example.com',
+                  subject: `[${severity}] ${payload.type} - ${payload.message}`,
+                  text: `Alert: ${payload.message} (itemId=${payload.itemId || 'N/A'})\nTime: ${payload.createdAt}`,
+                });
+              }
+            }
+          } catch (err) {
+            logger.error('Failed to process alert notification', { err });
           }
-        }
+        });
       } catch (err) {
-        // log and continue
-        logger.error('Failed to process alert notification', { err });
+        logger.error('Failed to initialize Postgres notification listener', { err });
       }
-    });
+    } else {
+      logger.warn('Skipping PG LISTEN + alert startup tasks until schema is applied');
+    }
 
-    // Check for existing low stock items on startup
-    setTimeout(async () => {
-      try {
-        await AlertService.checkAllItemsForLowStock();
-        logger.info('Initial low stock check completed');
-      } catch (error) {
-        logger.error('Failed to check low stock on startup:', error);
-      }
-    }, 5000);
+    if (schemaReady) {
+      // Check for existing low stock items on startup
+      setTimeout(async () => {
+        try {
+          await AlertService.checkAllItemsForLowStock();
+          logger.info('Initial low stock check completed');
+        } catch (error) {
+          logger.error('Failed to check low stock on startup:', error);
+        }
+      }, 5000);
+    }
 
     const app = createApp();
     app.listen(PORT, () => {

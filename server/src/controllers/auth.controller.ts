@@ -59,9 +59,10 @@ export async function loginUser(req: Request, res: Response): Promise<void> {
 
   res.cookie("token", token, {
     httpOnly: true,
-    sameSite: "none",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    // In local dev (http://localhost) use 'lax' to avoid Chrome rejecting insecure SameSite=None cookies
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000,
   });
 
   res.status(200).json(
@@ -106,8 +107,8 @@ export async function verifyMFALogin(req: Request, res: Response): Promise<void>
 
   res.cookie("token", jwtToken, {
     httpOnly: true,
-    sameSite: "none",
-    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: process.env.NODE_ENV === 'production',
     maxAge: 24 * 60 * 60 * 1000,
   });
 

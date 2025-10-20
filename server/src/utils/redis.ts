@@ -10,6 +10,9 @@ let isConnecting = false;
  * Connects to Redis with retry logic and graceful fallback.
  */
 export async function connectRedis(): Promise<RedisClientType> {
+  if (process.env.SKIP_REDIS === '1') {
+    throw new Error('Redis disabled in test environment');
+  }
   if (client?.isReady) return client;
   if (isConnecting) {
     // Wait for existing connection attempt
