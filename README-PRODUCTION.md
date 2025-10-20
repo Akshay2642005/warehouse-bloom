@@ -1,241 +1,320 @@
-# Production Deployment Guide - Warehouse Management System
+# Warehouse Bloom - Production Deployment Guide
 
-## 🚀 Production-Grade Optimizations Implemented
+## 🚀 Enterprise-Ready Warehouse Management System
 
-### Performance Improvements
-- **Redis-based search caching** with 5-minute TTL
-- **Full-text search indexes** on PostgreSQL for 10x faster queries
-- **Connection pooling** with optimized settings (10-100 connections)
-- **Compression middleware** for responses > 1KB
-- **Client-side caching** with proper ETags and cache headers
-- **Batch operations** for database writes
-- **Optimized Prisma queries** with selective field loading
+Warehouse Bloom is a comprehensive, enterprise-grade warehouse management system with integrated Polar payments, real-time analytics, and advanced security features.
 
-### Scalability Features
-- **Horizontal scaling** with 4 app replicas behind Nginx load balancer
-- **Redis-based distributed rate limiting** (5 auth/min, 60 API/min, 30 search/min)
-- **Database indexes** for all search and filter operations
-- **Pagination limits** capped at 50 items per page
-- **Memory monitoring** with alerts at 500MB usage
-- **Query timeout** protection (30s max)
+## ✨ Key Features
 
-### Security Enhancements
-- **Helmet.js** with CSP and HSTS headers
-- **HPP protection** against parameter pollution
-- **Request size limits** (2MB max)
-- **SQL injection protection** via Prisma ORM
-- **Rate limiting** by IP address with Redis backing
-- **CORS configuration** with specific origins
+### 🔐 Security & Authentication
+- JWT-based authentication with refresh tokens
+- Role-based access control (USER, STAFF, ADMIN, SUPER_ADMIN)
+- Two-factor authentication support
+- Account lockout protection
+- Comprehensive audit logging
+- Rate limiting and DDoS protection
 
-## 📊 Performance Benchmarks
+### 💳 Payment Integration
+- **Polar Payments** integration for seamless transactions
+- Multiple payment methods support
+- Automatic payment status tracking
+- Refund management
+- Payment analytics and reporting
 
-### Before Optimization
-- Search queries: 2-5 seconds
-- Memory usage: 800MB+ per instance
-- Database connections: Unlimited (connection leaks)
-- Cache hit ratio: 0% (no caching)
+### 📊 Advanced Analytics
+- Real-time inventory tracking
+- Sales performance metrics
+- Payment analytics
+- Low stock alerts
+- Comprehensive reporting dashboard
 
-### After Optimization
-- Search queries: 50-200ms (10-25x faster)
-- Memory usage: 300-500MB per instance
-- Database connections: Pooled (10-100 connections)
-- Cache hit ratio: 85%+ for search operations
+### 🏗️ Enterprise Architecture
+- Microservices-ready design
+- Redis caching for performance
+- Full-text search capabilities
+- Database query optimization
+- Horizontal scaling support
 
-## 🏗️ Architecture Overview
+### 🔍 Inventory Management
+- Advanced search and filtering
+- Barcode support
+- Bulk operations
+- Inventory movement tracking
+- Automated reorder alerts
 
-```
-Internet → Nginx Load Balancer → 4x App Instances → PostgreSQL + Redis
-                ↓
-        Static Assets (CDN-ready)
-```
+## 🛠️ Technology Stack
 
-## 🚀 Deployment Instructions
+### Backend
+- **Node.js** with **TypeScript**
+- **Express.js** web framework
+- **PostgreSQL** database with **Prisma ORM**
+- **Redis** for caching and sessions
+- **Zod** for validation
+- **Winston** for logging
 
-### 1. Environment Setup
+### Frontend
+- **React 18** with **TypeScript**
+- **Vite** for build tooling
+- **TanStack Query** for state management
+- **shadcn/ui** component library
+- **Tailwind CSS** for styling
+
+### Infrastructure
+- **Docker** containerization
+- **Nginx** reverse proxy
+- **Prometheus** & **Grafana** monitoring
+- **SSL/TLS** encryption ready
+
+## 📋 Prerequisites
+
+- **Docker** 20.10+ and **Docker Compose** 2.0+
+- **Git** for version control
+- **SSL certificates** (for HTTPS in production)
+- **Domain name** (for production deployment)
+
+## 🚀 Quick Start
+
+### 1. Clone and Setup
+
 ```bash
-# Copy environment files
-cp server/.env.example server/.env.production
-cp client/.env.example client/.env.production
+git clone <your-repository-url>
+cd warehouse-bloom
 
-# Set production variables
-export POSTGRES_PASSWORD=your_secure_password
-export JWT_SECRET=your_jwt_secret_key
-export CLIENT_ORIGIN=https://yourdomain.com
-export VITE_API_URL=https://api.yourdomain.com
+# Copy and configure environment
+cp .env.production .env.production.local
 ```
 
-### 2. Database Migration
+### 2. Configure Environment
+
+Edit `.env.production.local` with your production values:
+
 ```bash
-cd server
-npm run db:migrate
-npm run db:seed
+# Database - Use strong passwords
+DATABASE_URL="postgresql://warehouse_user:YOUR_STRONG_PASSWORD@postgres:5432/warehouse_db"
+POSTGRES_PASSWORD="YOUR_STRONG_PASSWORD"
+
+# Security - Generate strong secrets
+JWT_SECRET="YOUR_64_CHAR_RANDOM_STRING"
+
+# Polar Payments
+POLAR_ACCESS_TOKEN="your_production_polar_token"
+POLAR_WEBHOOK_SECRET="your_webhook_secret"
+POLAR_ENVIRONMENT="production"
+
+# Domain
+CLIENT_ORIGIN="https://your-domain.com"
+VITE_API_BASE_URL="https://your-domain.com/api"
 ```
 
-### 3. Production Deployment
+### 3. Deploy
+
 ```bash
-# Build and start all services
-docker-compose -f docker-compose.prod.yml up -d
+# Make deployment script executable
+chmod +x deploy.sh
 
-# Scale app instances
-docker-compose -f docker-compose.prod.yml up -d --scale app=4
+# Deploy with database seeding (first time)
+./deploy.sh --seed
+
+# Or deploy without seeding
+./deploy.sh
 ```
 
-### 4. Health Checks
+### 4. Access Your Application
+
+- **Frontend**: https://your-domain.com
+- **API**: https://your-domain.com/api
+- **Monitoring**: http://your-domain.com:3000 (Grafana)
+
+## 🔧 Configuration Options
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `NODE_ENV` | Environment mode | `production` |
+| `DATABASE_URL` | PostgreSQL connection string | Required |
+| `REDIS_URL` | Redis connection string | Optional |
+| `JWT_SECRET` | JWT signing secret (64+ chars) | Required |
+| `POLAR_ACCESS_TOKEN` | Polar payments API token | Required |
+| `CLIENT_ORIGIN` | Frontend domain | Required |
+| `MAX_FILE_SIZE_MB` | Upload size limit | `10` |
+| `RATE_LIMIT_MAX_REQUESTS` | API rate limit | `100` |
+
+### Deployment Options
+
 ```bash
-# Check all services
-curl http://localhost/health
-curl http://localhost:8080/nginx_status
-
-# Monitor logs
-docker-compose -f docker-compose.prod.yml logs -f app
+# Deploy with options
+./deploy.sh --seed              # Include database seeding
+./deploy.sh --skip-backup       # Skip backup creation
+./deploy.sh --skip-build        # Skip Docker image building
+./deploy.sh --help              # Show all options
 ```
 
-## 📈 Monitoring & Metrics
+## 🔒 Security Configuration
 
-### Application Metrics
-- Request duration tracking
-- Memory usage monitoring  
-- Database query performance
-- Cache hit/miss ratios
-- Error rates by endpoint
+### SSL/HTTPS Setup
 
-### Database Monitoring
-```sql
--- Check slow queries
-SELECT query, mean_time, calls 
-FROM pg_stat_statements 
-ORDER BY mean_time DESC LIMIT 10;
+1. Obtain SSL certificates (Let's Encrypt recommended)
+2. Place certificates in `nginx/ssl/`
+3. Uncomment HTTPS server block in `nginx/nginx.prod.conf`
+4. Update `CLIENT_ORIGIN` to use `https://`
 
--- Check index usage
-SELECT schemaname, tablename, attname, n_distinct, correlation 
-FROM pg_stats 
-WHERE tablename IN ('Item', 'Order', 'User');
-```
+### Firewall Configuration
 
-### Redis Monitoring
 ```bash
-# Connect to Redis
-docker exec -it warehouse_redis redis-cli
-
-# Check memory usage
-INFO memory
-
-# Monitor cache performance
-INFO stats
+# Allow only necessary ports
+ufw allow 22    # SSH
+ufw allow 80    # HTTP
+ufw allow 443   # HTTPS
+ufw enable
 ```
 
-## 🔧 Performance Tuning
+### Database Security
 
-### Database Optimization
-- **Indexes**: Full-text search, composite, and partial indexes
-- **Connection pooling**: 10 min, 100 max connections
-- **Query optimization**: Selective field loading, batch operations
-- **Autovacuum**: Tuned for high-write workloads
+- Use strong passwords (20+ characters)
+- Enable SSL connections in production
+- Regular security updates
+- Backup encryption
 
-### Redis Configuration
-- **Memory policy**: allkeys-lru with 1GB limit
-- **Persistence**: AOF enabled for durability
-- **Connection pooling**: Reused connections
-- **Key expiration**: Automatic cleanup of old cache entries
+## 📊 Monitoring & Logging
 
-### Application Optimization
-- **Compression**: Gzip for responses > 1KB
-- **Caching**: Multi-layer caching strategy
-- **Rate limiting**: Distributed across instances
-- **Memory management**: Automatic garbage collection tuning
+### Grafana Dashboards
+
+Access Grafana at `http://your-domain:3000`:
+- Default login: `admin` / `password-from-env`
+- Pre-configured dashboards for system metrics
+- Application performance monitoring
+- Payment transaction tracking
+
+### Log Management
+
+```bash
+# View application logs
+docker-compose -f docker-compose.prod.yml logs -f api
+
+# View nginx logs
+docker-compose -f docker-compose.prod.yml logs -f client
+
+# View database logs
+docker-compose -f docker-compose.prod.yml logs -f postgres
+```
+
+## 🔄 Maintenance
+
+### Backup Strategy
+
+```bash
+# Manual backup
+./deploy.sh --skip-build --skip-deploy
+
+# Automated daily backups (add to crontab)
+0 2 * * * /path/to/warehouse-bloom/backup.sh
+```
+
+### Updates
+
+```bash
+# Pull latest changes
+git pull origin main
+
+# Deploy updates
+./deploy.sh
+```
+
+### Database Migrations
+
+```bash
+# Run migrations manually
+docker-compose -f docker-compose.prod.yml run --rm api npx prisma migrate deploy
+```
 
 ## 🚨 Troubleshooting
 
-### High Memory Usage
-```bash
-# Check memory per service
-docker stats
+### Common Issues
 
-# Analyze heap dumps
-node --inspect server/dist/server.js
+1. **Services won't start**
+   ```bash
+   # Check logs
+   docker-compose -f docker-compose.prod.yml logs
+   
+   # Restart services
+   docker-compose -f docker-compose.prod.yml restart
+   ```
+
+2. **Database connection issues**
+   ```bash
+   # Check database status
+   docker-compose -f docker-compose.prod.yml exec postgres pg_isready
+   
+   # Reset database connection
+   docker-compose -f docker-compose.prod.yml restart postgres
+   ```
+
+3. **Payment webhook issues**
+   - Verify `POLAR_WEBHOOK_SECRET` matches Polar dashboard
+   - Check firewall allows incoming webhooks
+   - Verify SSL certificate is valid
+
+### Performance Optimization
+
+1. **Database Performance**
+   ```sql
+   -- Monitor slow queries
+   SELECT query, mean_time, calls 
+   FROM pg_stat_statements 
+   ORDER BY mean_time DESC LIMIT 10;
+   ```
+
+2. **Redis Monitoring**
+   ```bash
+   # Check Redis performance
+   docker-compose -f docker-compose.prod.yml exec redis redis-cli info stats
+   ```
+
+## 📞 Support
+
+### Health Checks
+
+- **API Health**: `GET /api/status/health`
+- **Database**: `GET /api/status/db`
+- **Redis**: `GET /api/status/cache`
+
+### Useful Commands
+
+```bash
+# Scale services
+docker-compose -f docker-compose.prod.yml up -d --scale api=3
+
+# Update single service
+docker-compose -f docker-compose.prod.yml up -d --no-deps api
+
+# Database shell
+docker-compose -f docker-compose.prod.yml exec postgres psql -U warehouse_user warehouse_db
+
+# Redis shell
+docker-compose -f docker-compose.prod.yml exec redis redis-cli
 ```
 
-### Slow Queries
-```bash
-# Enable query logging
-docker exec -it warehouse_postgres psql -U warehouse_user -d warehouse_prod
-SET log_min_duration_statement = 100;
-```
+## 🔐 Default Credentials
 
-### Cache Issues
-```bash
-# Clear Redis cache
-docker exec -it warehouse_redis redis-cli FLUSHALL
+**Initial Admin User:**
+- Email: `admin@warehouse.com`
+- Password: `admin123`
 
-# Check cache hit ratio
-docker exec -it warehouse_redis redis-cli INFO stats
-```
+**⚠️ IMPORTANT:** Change default passwords immediately after first login!
 
-## 📊 Load Testing
+## 📄 License
 
-### Expected Performance (1M+ users)
-- **Concurrent users**: 10,000+
-- **Requests per second**: 5,000+
-- **Response time**: < 200ms (95th percentile)
-- **Memory per instance**: < 500MB
-- **Database connections**: < 50 active
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-### Load Testing Commands
-```bash
-# Install artillery
-npm install -g artillery
+## 🤝 Contributing
 
-# Run load tests
-artillery run loadtest/api-test.yml
-artillery run loadtest/search-test.yml
-```
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
 
-## 🔄 Scaling Guidelines
+---
 
-### Horizontal Scaling
-- Add more app replicas: `docker-compose up -d --scale app=8`
-- Use external load balancer (AWS ALB, Cloudflare)
-- Implement database read replicas
-
-### Vertical Scaling
-- Increase container memory limits
-- Optimize PostgreSQL shared_buffers
-- Increase Redis memory allocation
-
-### Database Scaling
-- Implement read replicas for queries
-- Use connection pooling (PgBouncer)
-- Consider database sharding for 10M+ records
-
-## 🛡️ Security Checklist
-
-- ✅ Rate limiting implemented
-- ✅ SQL injection protection
-- ✅ XSS protection headers
-- ✅ CSRF protection
-- ✅ Input validation with Zod
-- ✅ Secure password hashing
-- ✅ JWT token security
-- ✅ HTTPS enforcement (production)
-- ✅ Security headers (Helmet.js)
-- ✅ Request size limits
-
-## 📝 Maintenance
-
-### Daily Tasks
-- Monitor error logs
-- Check memory usage
-- Verify cache hit ratios
-- Review slow query logs
-
-### Weekly Tasks
-- Database vacuum and analyze
-- Clear old cache entries
-- Review performance metrics
-- Update security patches
-
-### Monthly Tasks
-- Database backup verification
-- Performance benchmark testing
-- Security audit
-- Capacity planning review
+**🎉 Your enterprise-ready warehouse management system is now deployed and ready for production use!**

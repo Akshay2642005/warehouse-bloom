@@ -21,9 +21,9 @@ export default function Staff() {
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('user');
+  const [inviteRole, setInviteRole] = useState('USER');
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
-  const [newRole, setNewRole] = useState('user');
+  const [newRole, setNewRole] = useState('USER');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const inviteMutation = useMutation({
@@ -31,7 +31,7 @@ export default function Staff() {
     onSuccess: () => {
       toast({ title: 'Invitation sent' });
       setInviteEmail('');
-      setInviteRole('user');
+      setInviteRole('USER');
       setInviteOpen(false);
       queryClient.invalidateQueries({ queryKey: ['invitations'] });
     },
@@ -59,10 +59,12 @@ export default function Staff() {
 
   const getStatusBadge = (role: string) => {
     switch (role) {
-      case "admin":
+      case "ADMIN":
         return <Badge variant="outline" className="border-success text-success bg-success/10">Admin</Badge>;
-      case "user":
+      case "USER":
         return <Badge variant="outline" className="border-muted text-muted-foreground bg-muted/10">User</Badge>;
+      case "STAFF":
+        return <Badge variant="outline" className="border-blue-500 text-blue-500 bg-blue-50">Staff</Badge>;
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
@@ -82,8 +84,8 @@ export default function Staff() {
 
       <div className="grid gap-4 md:grid-cols-4">
         <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Total Users</p><p className="text-2xl font-bold">{users.length}</p></div><Users className="h-8 w-8 text-primary-blue" /></div></CardContent></Card>
-        <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Admins</p><p className="text-2xl font-bold text-success">{users.filter(u => u.role === 'admin').length}</p></div><Users className="h-8 w-8 text-success" /></div></CardContent></Card>
-        <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Standard</p><p className="text-2xl font-bold text-warning">{users.filter(u => u.role === 'user').length}</p></div><Users className="h-8 w-8 text-warning" /></div></CardContent></Card>
+        <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Admins</p><p className="text-2xl font-bold text-success">{users.filter(u => u.role === 'ADMIN').length}</p></div><Users className="h-8 w-8 text-success" /></div></CardContent></Card>
+        <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Standard</p><p className="text-2xl font-bold text-warning">{users.filter(u => u.role === 'USER').length}</p></div><Users className="h-8 w-8 text-warning" /></div></CardContent></Card>
         <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Recently Added</p><p className="text-2xl font-bold text-info">{Math.min(users.length, 5)}</p></div><Users className="h-8 w-8 text-info" /></div></CardContent></Card>
       </div>
 
@@ -101,8 +103,9 @@ export default function Staff() {
                         <Select value={newRole} onValueChange={setNewRole}>
                           <SelectTrigger className="h-7 w-28"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="admin">admin</SelectItem>
-                            <SelectItem value="user">user</SelectItem>
+                            <SelectItem value="ADMIN">Admin</SelectItem>
+                            <SelectItem value="USER">User</SelectItem>
+                            <SelectItem value="STAFF">Staff</SelectItem>
                           </SelectContent>
                         </Select>
                         <Button size="sm" variant="outline" onClick={() => roleMutation.mutate({ id: u.id, role: newRole })} disabled={roleMutation.isPending}>Save</Button>
@@ -129,7 +132,7 @@ export default function Staff() {
                     <Phone className="h-4 w-4 mr-1" />Call
                   </a>
                 </Button>
-                <Button variant="destructive" size="sm" className="flex-1" disabled={deleteMutation.isPending || u.role === 'admin'} onClick={() => setConfirmDeleteId(u.id)}><Trash2 className="h-4 w-4 mr-1" />Del</Button>
+                <Button variant="destructive" size="sm" className="flex-1" disabled={deleteMutation.isPending || u.role === 'ADMIN'} onClick={() => setConfirmDeleteId(u.id)}><Trash2 className="h-4 w-4 mr-1" />Del</Button>
               </div>
             </CardContent>
           </Card>
@@ -167,8 +170,9 @@ export default function Staff() {
               <Select value={inviteRole} onValueChange={setInviteRole}>
                 <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="user">User</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="USER">User</SelectItem>
+                  <SelectItem value="STAFF">Staff</SelectItem>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>

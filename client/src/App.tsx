@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { UserProvider, useUser } from "./contexts/UserContext";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Pages & Layout
 import Home from "./pages/Home";
@@ -22,13 +23,35 @@ import SystemStatus from "./pages/SystemStatus";
 import NotFound from "./pages/NotFound";
 import { Layout } from "./components/Layout";
 import Profile from "./pages/Profile";
+import Billing from "./pages/Billing";
+import PaymentSuccess from "./pages/PaymentSuccess";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: (failureCount, error: any) => {
+        // Don't retry on 4xx errors
+        if (error?.response?.status >= 400 && error?.response?.status < 500) {
+          return false;
+        }
+        return failureCount < 3;
+      },
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+    },
+    mutations: {
       retry: 1,
-      refetchOnWindowFocus: false
-    }
+    },
+  },
+});
+
+// Global error handler for unhandled promise rejections
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
+  // In production, send to error tracking service
+  if (import.meta.env.PROD) {
+    // Example: Sentry.captureException(event.reason);
   }
 });
 
@@ -47,6 +70,7 @@ function AppRoutes() {
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/success" element={<PaymentSuccess />} />
 
       {/* Protected routes */}
       <Route path="/dashboard" element={user ? <Layout><Dashboard /></Layout> : <Navigate to="/login" replace />} />
@@ -54,6 +78,7 @@ function AppRoutes() {
       <Route path="/orders" element={user ? <Layout><Orders /></Layout> : <Navigate to="/login" replace />} />
       <Route path="/shipping" element={user ? <Layout><Shipping /></Layout> : <Navigate to="/login" replace />} />
       <Route path="/analytics" element={<Layout><Analytics /></Layout>} />
+      <Route path="/billing" element={user ? <Layout><Billing /></Layout> : <Navigate to="/login" replace />} />
       <Route path="/alerts" element={user ? <Layout><Alerts /></Layout> : <Navigate to="/login" replace />} />
       <Route path="/staff" element={user ? <Layout><Staff /></Layout> : <Navigate to="/login" replace />} />
       <Route path="/settings" element={user ? <Layout><SettingsPage /></Layout> : <Navigate to="/login" replace />} />
@@ -66,19 +91,31 @@ function AppRoutes() {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <UserProvider>
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </TooltipProvider>
-      </ThemeProvider>
-    </UserProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <UserProvider>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner 
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: 'hsl(var(--background))',
+                  color: 'hsl(var(--foreground))',
+                  border: '1px solid hsl(var(--border))',
+                },
+              }}
+            />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </TooltipProvider>
+        </ThemeProvider>
+      </UserProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

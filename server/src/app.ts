@@ -7,7 +7,7 @@ import hpp from 'hpp';
 import compression from 'compression';
 import { errorHandler } from './middlewares/errorHandler';
 import { notFoundHandler } from './middlewares/notFound';
-import { rateLimiters } from './middlewares/rateLimiter';
+import { rateLimiters, sanitizeRequest, validateSession } from './middlewares/security';
 import { performanceMonitor, memoryMonitor, healthCheck } from './middlewares/performance';
 import { authRouter } from './routes/auth.routes';
 import { itemsRouter } from './routes/items.routes';
@@ -26,83 +26,163 @@ import { searchRouter } from './routes/search.routes';
 import { invitationsRouter } from './routes/invitations.routes';
 import analyticsRouter from './routes/analytics.routes';
 import notificationsRouter from './routes/notifications.routes';
+import { paymentRouter } from './routes/payment.routes';
+import { twofaRouter } from './routes/twofa.routes';
+import { enforceTenantIsolation } from './middlewares/tenant';
+import { requireAuth } from './middlewares/requireAuth';
+import { logger } from './utils/logger';
 
 /**
- * Creates and configures the Express application.
+ * Creates and configures the Express application with enterprise-grade security and performance.
  * @returns Configured Express Application instance
  */
 export function createApp(): Application {
   const app = express();
 
-  // Security & performance middlewares
+  // Trust proxy for accurate IP addresses behind load balancers
+  app.set('trust proxy', 1);
+
+  // Enhanced security headers
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", "data:", "https:"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        scriptSrc: ["'self'", "'unsafe-eval'"], // Allow eval for development
+        imgSrc: ["'self'", "data:", "https:", "blob:"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        connectSrc: ["'self'", "https://api.polar.sh", "https://sandbox-api.polar.sh"],
+        frameSrc: ["'none'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
       },
     },
     hsts: {
       maxAge: 31536000,
       includeSubDomains: true,
       preload: true
-    }
+    },
+    crossOriginEmbedderPolicy: false, // Allow embedding for payment flows
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" }
   }));
   
-  // Dynamic CORS to properly support credentials with one or many allowed origins
+  // Enhanced CORS configuration
   const allowedOrigins = (config.CLIENT_ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean);
   app.use(cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // allow non-browser / same-origin
-      if (!allowedOrigins.length || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (mobile apps, Postman, etc.)
+      if (!origin) return callback(null, true);
+      
+      // Allow all origins in development
+      if (config.isDevelopment) return callback(null, true);
+      
+      // Check whitelist in production
+      if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-      return callback(new Error('Not allowed by CORS')); 
+      
+      logger.security('CORS violation', { origin, allowedOrigins });
+      return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
-    maxAge: 86400
+    maxAge: 86400,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
   }));
   
+  // Enhanced compression with better filtering
   app.use(compression({ 
     filter: (req, res) => {
       if (req.headers['x-no-compression']) return false;
+      if (req.path.startsWith('/api/payments/webhook')) return false; // Don't compress webhooks
       return compression.filter(req, res);
     },
-    threshold: 1024 // Only compress responses > 1KB
+    threshold: 1024,
+    level: 6 // Balance between compression ratio and CPU usage
   }));
   
+  // Request sanitization
+  app.use(sanitizeRequest);
+  
+  // Enhanced body parsing with size limits
+  app.use('/api/payments/webhook', express.raw({ type: 'application/json', limit: '1mb' }));
   app.use(express.json({ 
-    limit: '2mb',
+    limit: config.MAX_FILE_SIZE_MB + 'mb',
     verify: (req, res, buf) => {
-      // Store raw body for webhook verification if needed
-      (req as any).rawBody = buf;
+      // Store raw body for webhook verification
+      if (req.path.includes('/webhook')) {
+        (req as any).rawBody = buf;
+      }
     }
   }));
   
-  app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+  app.use(express.urlencoded({ 
+    extended: true, 
+    limit: config.MAX_FILE_SIZE_MB + 'mb',
+    parameterLimit: 1000
+  }));
+  
   app.use(cookieParser());
-  app.use(hpp());
-  app.use(morgan(config.NODE_ENV === 'production' ? 'combined' : 'dev'));
+  app.use(hpp({ whitelist: ['sort', 'filter'] })); // Allow multiple sort/filter params
+  
+  // Enhanced logging (disabled in development to reduce noise)
+  if (config.isProduction) {
+    app.use(morgan('combined', {
+      stream: {
+        write: (message: string) => {
+          logger.info('HTTP Request', { message: message.trim() });
+        }
+      }
+    }));
+  }
 
-  // Performance monitoring (skip in test to reduce noise)
-  if (config.NODE_ENV !== 'test') {
+  // Performance monitoring and health checks
+  if (!config.isTest) {
     app.use(performanceMonitor);
     app.use(memoryMonitor);
   }
   app.use(healthCheck);
 
-  // Production-grade rate limiting
+  // Global rate limiting
   app.use('/api/auth', rateLimiters.auth);
+  app.use('/api/payments/webhook', (req, res, next) => next()); // Skip rate limiting for webhooks
   app.use('/api', rateLimiters.api);
 
-  // Health check is handled by middleware
+  // Session validation for authenticated routes
+  app.use('/api', (req, res, next) => {
+    // Skip session validation for public endpoints
+    const publicPaths = ['/api/auth', '/api/status', '/api/payments/webhook'];
+    if (publicPaths.some(path => req.path.startsWith(path))) {
+      return next();
+    }
+    return validateSession(req, res, next);
+  });
 
-  // API routes with specific rate limiting
+  // API routes with enhanced security and rate limiting
   app.use('/api/auth', authRouter);
-  app.use('/api/items', rateLimiters.search, itemsRouter); // Search endpoints need stricter limits
-  app.use('/api/orders', rateLimiters.heavy, ordersRouter); // Heavy operations
+  app.use('/api/payments', paymentRouter);
+  app.use('/api/2fa', twofaRouter);
+  
+  // Apply authentication to all protected routes
+  app.use('/api', (req, res, next) => {
+    const publicPaths = ['/api/auth', '/api/payments/webhook', '/api/status', '/api/2fa'];
+    if (publicPaths.some(path => req.path.startsWith(path))) {
+      return next();
+    }
+    return requireAuth(req, res, next);
+  });
+
+  // Apply tenant isolation to all protected routes
+  app.use('/api', (req, res, next) => {
+    const publicPaths = ['/api/auth', '/api/payments/webhook', '/api/status', '/api/2fa'];
+    if (publicPaths.some(path => req.path.startsWith(path))) {
+      return next();
+    }
+    return enforceTenantIsolation(req, res, next);
+  });
+  app.use('/api/items', rateLimiters.search, itemsRouter);
+  app.use('/api/orders', rateLimiters.heavy, ordersRouter);
   app.use('/api/shipments', shipmentsRouter);
   app.use('/api/dashboard', dashboardRouter);
   app.use('/api/alerts', alertsRouter);
@@ -117,9 +197,20 @@ export function createApp(): Application {
   app.use('/api/analytics', analyticsRouter);
   app.use('/api/notifications', notificationsRouter);
 
-  // 404 and error handling
+  // Global error handling
   app.use(notFoundHandler);
   app.use(errorHandler);
+
+  // Graceful shutdown handling
+  process.on('SIGTERM', () => {
+    logger.info('SIGTERM received, shutting down gracefully');
+    process.exit(0);
+  });
+
+  process.on('SIGINT', () => {
+    logger.info('SIGINT received, shutting down gracefully');
+    process.exit(0);
+  });
 
   return app;
 }

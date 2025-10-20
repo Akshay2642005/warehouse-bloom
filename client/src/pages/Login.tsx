@@ -32,11 +32,21 @@ export default function Login() {
       }
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Login failed",
-        variant: "destructive"
-      });
+      const errorData = error.response?.data;
+      if (errorData?.data?.requiresPayment) {
+        toast({
+          title: "Payment Required",
+          description: "Please complete payment to activate your account.",
+          variant: "destructive"
+        });
+        // Could redirect to payment page here
+      } else {
+        toast({
+          title: "Error",
+          description: errorData?.message || "Login failed",
+          variant: "destructive"
+        });
+      }
     }
   });
 

@@ -8,7 +8,7 @@ import crypto from 'crypto';
 
 const updateUserSchema = z.object({
   email: z.string().email().optional(),
-  role: z.enum(["admin", "user"]).optional(),
+  role: z.enum(["ADMIN", "USER", "STAFF", "SUPER_ADMIN"]).optional(),
   name: z.string().min(1).max(100).optional(),
   avatarUrl: z.string().url().optional(),
   phoneNumber: z.string().min(6).max(32).optional(),

@@ -12,14 +12,15 @@ import { z } from 'zod';
 export async function getItems(req: Request, res: Response): Promise<void> {
   try {
     const parsed = queryItemsSchema.parse(req.query);
-    const { page = 1, pageSize: rawPageSize = 10, q, status, sortBy } = parsed;
-    const pageSize = Math.min(rawPageSize, 50); // Force cap at 50
+    const { page = 1, pageSize: rawPageSize = 50, q, status, sortBy } = parsed;
+    const pageSize = Math.min(rawPageSize, 100); // Force cap at 100
 
     const result = await SearchService.searchItems({
       query: q,
       page,
       pageSize: Math.min(pageSize, 50),
-      filters: { status, sortBy }
+      filters: { status, sortBy },
+      tenantId: req.tenantId
     });
 
     res.set({
@@ -49,7 +50,7 @@ export async function createItem(req: Request, res: Response): Promise<void> {
     const itemData = createItemSchema.parse(req.body);
     const userId = req.user!.id;
     
-    const item = await ItemService.createItem({ ...itemData, ownerId: userId });
+    const item = await ItemService.createItem({ ...itemData, ownerId: userId, tenantId: req.tenantId });
     
     res.status(201).json(createResponse({ 
       data: { item },
@@ -84,7 +85,7 @@ export async function createItem(req: Request, res: Response): Promise<void> {
 export async function getItemById(req: Request, res: Response): Promise<void> {
   const { id } = z.object({ id: z.string() }).parse(req.params);
   
-  const item = await ItemService.getItemById(id);
+  const item = await ItemService.getItemById(id, req.tenantId);
   if (!item) {
     res.status(404).json(createResponse({ success: false, message: 'Item not found' }));
     return;
@@ -104,7 +105,7 @@ export async function updateItemById(req: Request, res: Response): Promise<void>
     const { id } = z.object({ id: z.string() }).parse(req.params);
     const updateData = updateItemSchema.parse(req.body);
     
-    const item = await ItemService.updateItem(id, updateData);
+    const item = await ItemService.updateItem(id, updateData, req.tenantId);
     if (!item) {
       res.status(404).json(createResponse({ success: false, message: 'Item not found' }));
       return;
@@ -146,7 +147,7 @@ export async function updateItemById(req: Request, res: Response): Promise<void>
 export async function deleteItemById(req: Request, res: Response): Promise<void> {
   const { id } = z.object({ id: z.string() }).parse(req.params);
   
-  const deleted = await ItemService.deleteItem(id);
+  const deleted = await ItemService.deleteItem(id, req.tenantId);
   if (!deleted) {
     res.status(404).json(createResponse({ success: false, message: 'Item not found' }));
     return;
@@ -162,7 +163,7 @@ export async function restockItem(req: Request, res: Response): Promise<void> {
   const { id } = z.object({ id: z.string() }).parse(req.params);
   const { amount } = z.object({ amount: z.number().positive() }).parse(req.body);
   
-  const item = await ItemService.restockItem(id, amount);
+  const item = await ItemService.restockItem(id, amount, req.tenantId);
   if (!item) {
     res.status(404).json(createResponse({ success: false, message: 'Item not found' }));
     return;
@@ -178,6 +179,6 @@ export async function restockItem(req: Request, res: Response): Promise<void> {
  * Lists low stock items under threshold (default 10) for dashboard/alerts.
  */
 export async function getLowStock(_req: Request, res: Response): Promise<void> {
-  const items = await ItemService.getLowStockItems(10);
+  const items = await ItemService.getLowStockItems(10, req.tenantId);
   res.status(200).json(createResponse({ data: { items }, message: 'Low stock items retrieved' }));
 }

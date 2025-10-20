@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["fullTextIndex"]
 }
 
 datasource db {
@@ -11,69 +12,111 @@ model User {
   id               String        @id @default(cuid())
   email            String        @unique
   password         String
-  role             String        @default("user")
+  role             UserRole      @default(USER)
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   avatarUrl        String?
   name             String?
   phoneNumber      String?
+  address          String?
   twoFactorEnabled Boolean       @default(false)
   twoFactorSecret  String?
+  isActive         Boolean       @default(true)
+  lastLoginAt      DateTime?
+  tenantId         String?
   items            Item[]
   orders           Order[]
   sessions         UserSession[]
   invitationsSent  InvitationToken[] @relation("UserInvitations")
   notifications    Notification[]
+  auditLogs        AuditLog[]
+  paymentMethods   PaymentMethod[]
+  subscriptions    Subscription[]
+  tenant           Tenant?       @relation(fields: [tenantId], references: [id])
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@index([tenantId])
 }
 
 model Item {
-  id          String      @id @default(cuid())
-  name        String
-  sku         String      @unique
-  quantity    Int         @default(0)
-  priceCents  Int         @default(0)
-  imageUrl    String?
-  description String?
-  ownerId     String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  alerts      Alert[]
-  owner       User?       @relation(fields: [ownerId], references: [id])
-  orderItems  OrderItem[]
-  supplierId  String?
-  categoryId  String?
-  supplier    Supplier?    @relation(fields: [supplierId], references: [id])
-  category    Category?    @relation(fields: [categoryId], references: [id])
-  logs        InventoryLog[]
-  reorderLevel Int         @default(10)
+  id           String         @id @default(cuid())
+  name         String
+  sku          String
+  quantity     Int            @default(0)
+  priceCents   Int            @default(0)
+  imageUrl     String?
+  description  String?
+  ownerId      String?
+  tenantId     String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  alerts       Alert[]
+  owner        User?          @relation(fields: [ownerId], references: [id])
+  tenant       Tenant?        @relation(fields: [tenantId], references: [id])
+  orderItems   OrderItem[]
+  supplierId   String?
+  categoryId   String?
+  supplier     Supplier?      @relation(fields: [supplierId], references: [id])
+  category     Category?      @relation(fields: [categoryId], references: [id])
+  logs         InventoryLog[]
+  reorderLevel Int            @default(10)
+  isActive     Boolean        @default(true)
+  weight       Float?
+  dimensions   Json?
+  barcode      String?
+  location     String?
+  minStock     Int            @default(5)
+  maxStock     Int            @default(1000)
+  costCents    Int            @default(0)
 
+  @@unique([sku, tenantId])
+  @@unique([barcode, tenantId])
   @@index([name])
   @@index([sku])
   @@index([quantity])
   @@index([ownerId])
+  @@index([tenantId])
   @@index([updatedAt])
   @@index([name, sku, description])
   @@index([supplierId])
   @@index([categoryId])
+  @@index([isActive])
+  @@index([barcode])
+
 }
 
 model Order {
-  id          String      @id @default(cuid())
-  orderNumber String      @unique
-  userId      String
-  status      OrderStatus @default(PENDING)
-  totalCents  Int         @default(0)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  user        User        @relation(fields: [userId], references: [id])
-  items       OrderItem[]
-  shipments   Shipment[]
-  supplierId  String?
-  supplier    Supplier?   @relation(fields: [supplierId], references: [id])
+  id           String        @id @default(cuid())
+  orderNumber  String
+  userId       String
+  tenantId     String?
+  status       OrderStatus   @default(PENDING)
+  totalCents   Int           @default(0)
+  taxCents     Int           @default(0)
+  shippingCents Int          @default(0)
+  discountCents Int          @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  user         User          @relation(fields: [userId], references: [id])
+  tenant       Tenant?       @relation(fields: [tenantId], references: [id])
+  items        OrderItem[]
+  shipments    Shipment[]
+  supplierId   String?
+  supplier     Supplier?     @relation(fields: [supplierId], references: [id])
+  payments     Payment[]
+  notes        String?
+  priority     OrderPriority @default(NORMAL)
+  expectedDate DateTime?
 
+  @@unique([orderNumber, tenantId])
   @@index([createdAt])
   @@index([status])
   @@index([supplierId])
+  @@index([userId])
+  @@index([tenantId])
+  @@index([priority])
 }
 
 model OrderItem {
@@ -87,6 +130,55 @@ model OrderItem {
 
   @@index([itemId])
   @@index([orderId])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  orderId         String
+  amount          Int
+  currency        String        @default("USD")
+  status          PaymentStatus @default(PENDING)
+  provider        String        // "polar", "stripe", etc.
+  providerPaymentId String?
+  metadata        Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  order           Order         @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([status])
+  @@index([provider])
+}
+
+model PaymentMethod {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // "card", "bank_account", etc.
+  provider  String   // "polar", "stripe", etc.
+  providerMethodId String
+  isDefault Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([provider])
+}
+
+model Subscription {
+  id        String           @id @default(cuid())
+  userId    String
+  planId    String
+  status    SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
 }
 
 model Shipment {
@@ -105,6 +197,7 @@ model Shipment {
 
   @@index([status])
   @@index([createdAt])
+  @@index([trackingNumber])
 }
 
 model Alert {
@@ -117,12 +210,22 @@ model Alert {
   new          Boolean   @default(true)
   createdAt    DateTime  @default(now())
   item         Item?     @relation(fields: [itemId], references: [id])
+
+  @@index([type])
+  @@index([severity])
+  @@index([acknowledged])
 }
 
 model SystemSetting {
-  key       String   @id
+  id        String   @id @default(cuid())
+  key       String
   value     String
+  tenantId  String?
   updatedAt DateTime @updatedAt
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+
+  @@unique([key, tenantId])
+  @@index([tenantId])
 }
 
 model UserSession {
@@ -132,16 +235,18 @@ model UserSession {
   userAgent    String
   lastActivity DateTime @default(now())
   createdAt    DateTime @default(now())
+  expiresAt    DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([lastActivity])
+  @@index([expiresAt])
 }
 
 model InvitationToken {
   id          String   @id @default(cuid())
   email       String
-  role        String   @default("user")
+  role        UserRole @default(USER)
   token       String   @unique
   accepted    Boolean  @default(false)
   expiresAt   DateTime
@@ -154,8 +259,6 @@ model InvitationToken {
   @@index([expiresAt])
 }
 
-// New Models
-
 model Supplier {
   id          String   @id @default(cuid())
   name        String
@@ -167,15 +270,25 @@ model Supplier {
   updatedAt   DateTime @updatedAt
   items       Item[]
   orders      Order[]
+  isActive    Boolean  @default(true)
+
   @@index([name])
+  @@index([isActive])
 }
 
 model Category {
   id        String   @id @default(cuid())
-  name      String   @unique
+  name      String
+  tenantId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   items     Item[]
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  isActive  Boolean  @default(true)
+
+  @@unique([name, tenantId])
+  @@index([isActive])
+  @@index([tenantId])
 }
 
 model InventoryLog {
@@ -186,6 +299,7 @@ model InventoryLog {
   referenceId String?
   createdAt   DateTime @default(now())
   item        Item     @relation(fields: [itemId], references: [id])
+
   @@index([itemId])
   @@index([createdAt])
 }
@@ -198,6 +312,7 @@ model Notification {
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
+
   @@index([userId, read])
   @@index([createdAt])
 }
@@ -210,8 +325,56 @@ model ShipmentEvent {
   note       String?
   createdAt  DateTime @default(now())
   shipment   Shipment @relation(fields: [shipmentId], references: [id])
+
   @@index([shipmentId])
   @@index([createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  resource  String
+  resourceId String?
+  oldValues Json?
+  newValues Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+}
+
+model Tenant {
+  id             String          @id @default(cuid())
+  userId         String          @unique
+  name           String
+  subdomain      String          @unique
+  plan           TenantPlan      @default(FREE)
+  subscriptionId String?
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  users          User[]
+  items          Item[]
+  orders         Order[]
+  categories     Category[]
+  settings       SystemSetting[]
+
+  @@index([userId])
+  @@index([subdomain])
+  @@index([isActive])
+}
+
+enum UserRole {
+  USER
+  STAFF
+  ADMIN
+  SUPER_ADMIN
 }
 
 enum OrderStatus {
@@ -220,6 +383,30 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+  REFUNDED
+}
+
+enum OrderPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+  UNPAID
 }
 
 enum AlertType {
@@ -227,6 +414,8 @@ enum AlertType {
   OUT_OF_STOCK
   ORDER_CREATED
   ORDER_STATUS_CHANGED
+  PAYMENT_FAILED
+  SYSTEM_ERROR
 }
 
 enum Severity {
@@ -234,4 +423,11 @@ enum Severity {
   MEDIUM
   HIGH
   CRITICAL
+}
+
+enum TenantPlan {
+  FREE
+  BASIC
+  PRO
+  ENTERPRISE
 }
