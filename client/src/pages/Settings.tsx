@@ -48,7 +48,7 @@ export default function SettingsPage() {
     companyName: 'Warehouse Bloom',
     companyAddress: ''
   });
-  
+
   const [userPreferences, setUserPreferences] = useState<UserPreferences>({
     emailNotifications: '1',
     lowStockAlerts: '1',
@@ -151,11 +151,11 @@ export default function SettingsPage() {
                 <Label>Email Notifications</Label>
                 <p className="text-sm text-muted-foreground">Receive email alerts for important events</p>
               </div>
-              <Switch 
-                checked={userPreferences.emailNotifications === '1'} 
-                onCheckedChange={(checked) => 
+              <Switch
+                checked={userPreferences.emailNotifications === '1'}
+                onCheckedChange={(checked) =>
                   setUserPreferences(prev => ({ ...prev, emailNotifications: checked ? '1' : '0' }))
-                } 
+                }
               />
             </div>
             <Separator />
@@ -164,11 +164,11 @@ export default function SettingsPage() {
                 <Label>Low Stock Alerts</Label>
                 <p className="text-sm text-muted-foreground">Get notified when items are running low</p>
               </div>
-              <Switch 
-                checked={userPreferences.lowStockAlerts === '1'} 
-                onCheckedChange={(checked) => 
+              <Switch
+                checked={userPreferences.lowStockAlerts === '1'}
+                onCheckedChange={(checked) =>
                   setUserPreferences(prev => ({ ...prev, lowStockAlerts: checked ? '1' : '0' }))
-                } 
+                }
               />
             </div>
             <Separator />
@@ -177,18 +177,18 @@ export default function SettingsPage() {
                 <Label>Order Updates</Label>
                 <p className="text-sm text-muted-foreground">Notifications for order status changes</p>
               </div>
-              <Switch 
-                checked={userPreferences.orderUpdates === '1'} 
-                onCheckedChange={(checked) => 
+              <Switch
+                checked={userPreferences.orderUpdates === '1'}
+                onCheckedChange={(checked) =>
                   setUserPreferences(prev => ({ ...prev, orderUpdates: checked ? '1' : '0' }))
-                } 
+                }
               />
             </div>
             <Separator />
             <div className="space-y-2">
               <Label>Items Per Page</Label>
-              <Select 
-                value={userPreferences.itemsPerPage} 
+              <Select
+                value={userPreferences.itemsPerPage}
                 onValueChange={(value) => setUserPreferences(prev => ({ ...prev, itemsPerPage: value }))}
               >
                 <SelectTrigger>
@@ -202,10 +202,10 @@ export default function SettingsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button 
+            <Button
               onClick={() => savePreferencesMutation.mutate(userPreferences)}
               disabled={savePreferencesMutation.isPending}
-              className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
+              className="w-full"
             >
               <Save className="h-4 w-4 mr-2" />
               {savePreferencesMutation.isPending ? 'Saving...' : 'Save Preferences'}
@@ -264,15 +264,15 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Company Name</Label>
-                  <Input 
-                    value={systemSettings.companyName} 
+                  <Input
+                    value={systemSettings.companyName}
                     onChange={(e) => setSystemSettings(prev => ({ ...prev, companyName: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Default Currency</Label>
-                  <Select 
-                    value={systemSettings.currency} 
+                  <Select
+                    value={systemSettings.currency}
                     onValueChange={(value) => setSystemSettings(prev => ({ ...prev, currency: value }))}
                   >
                     <SelectTrigger>
@@ -288,8 +288,8 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Date Format</Label>
-                  <Select 
-                    value={systemSettings.dateFormat} 
+                  <Select
+                    value={systemSettings.dateFormat}
                     onValueChange={(value) => setSystemSettings(prev => ({ ...prev, dateFormat: value }))}
                   >
                     <SelectTrigger>
@@ -304,8 +304,8 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Timezone</Label>
-                  <Select 
-                    value={systemSettings.timezone} 
+                  <Select
+                    value={systemSettings.timezone}
                     onValueChange={(value) => setSystemSettings(prev => ({ ...prev, timezone: value }))}
                   >
                     <SelectTrigger>
@@ -321,11 +321,11 @@ export default function SettingsPage() {
                   </Select>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Company Address</Label>
-                <Textarea 
-                  value={systemSettings.companyAddress} 
+                <Textarea
+                  value={systemSettings.companyAddress}
                   onChange={(e) => setSystemSettings(prev => ({ ...prev, companyAddress: e.target.value }))}
                   placeholder="Enter company address..."
                   rows={3}
@@ -335,9 +335,9 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Low Stock Threshold</Label>
-                  <Input 
-                    type="number" 
-                    value={systemSettings.lowStockThreshold} 
+                  <Input
+                    type="number"
+                    value={systemSettings.lowStockThreshold}
                     onChange={(e) => setSystemSettings(prev => ({ ...prev, lowStockThreshold: e.target.value }))}
                   />
                 </div>
@@ -346,27 +346,27 @@ export default function SettingsPage() {
                     <Label>Maintenance Mode</Label>
                     <p className="text-sm text-muted-foreground">Show maintenance banner to users</p>
                   </div>
-                  <Switch 
-                    checked={systemSettings.maintenance === '1'} 
-                    onCheckedChange={(checked) => 
+                  <Switch
+                    checked={systemSettings.maintenance === '1'}
+                    onCheckedChange={(checked) =>
                       setSystemSettings(prev => ({ ...prev, maintenance: checked ? '1' : '0' }))
-                    } 
+                    }
                   />
                 </div>
               </div>
 
               <Separator />
-              
+
               <div className="flex gap-3">
-                <Button 
+                <Button
                   onClick={() => saveSystemMutation.mutate(systemSettings)}
                   disabled={saveSystemMutation.isPending}
-                  className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black"
+                  className="flex-1"
                 >
                   <Save className="h-4 w-4 mr-2" />
                   {saveSystemMutation.isPending ? 'Saving...' : 'Save System Settings'}
                 </Button>
-                <Button 
+                <Button
                   variant="outline"
                   onClick={() => clearCacheMutation.mutate()}
                   disabled={clearCacheMutation.isPending}

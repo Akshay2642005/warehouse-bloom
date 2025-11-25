@@ -23,7 +23,7 @@ export function InventoryTable({ searchTerm = '', statusFilter = 'all', sortBy =
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   // Reset page when search/filters change
   useEffect(() => {
     setPage(1);
@@ -54,7 +54,7 @@ export function InventoryTable({ searchTerm = '', statusFilter = 'all', sortBy =
   });
 
   // Use server-side filtered data directly (no client-side filtering for performance)
-  const items = data?.data?.items || data?.items || [];
+  const items = data?.items || [];
 
   const getStatusBadge = useCallback((stock: number) => {
     const reorderLevel = 10;
@@ -98,10 +98,6 @@ export function InventoryTable({ searchTerm = '', statusFilter = 'all', sortBy =
           Inventory Management
           {isFetching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
         </CardTitle>
-        <Button size="sm" onClick={() => setShowDialog(true)} className="bg-yellow-500 hover:bg-yellow-600 text-black">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Product
-        </Button>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
@@ -159,9 +155,9 @@ export function InventoryTable({ searchTerm = '', statusFilter = 'all', sortBy =
                       <Button variant="ghost" size="sm" onClick={() => { setSelectedItem(item); setShowDialog(true); }}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => deleteMutation.mutate(item.id)}
                         disabled={deleteMutation.isPending}
                         className="text-destructive hover:text-destructive"
@@ -175,31 +171,31 @@ export function InventoryTable({ searchTerm = '', statusFilter = 'all', sortBy =
             </tbody>
           </table>
         </div>
-        
-        {data && (data.data?.totalPages || data.totalPages) > 1 && items.length > 0 && (
+
+        {data && data.totalPages > 1 && items.length > 0 && (
           <div className="flex justify-center mt-4 gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               disabled={page === 1}
               onClick={() => setPage(p => p - 1)}
             >
               Previous
             </Button>
             <span className="flex items-center px-3 text-sm">
-              Page {page} of {data.data?.totalPages || data.totalPages}
+              Page {page} of {data.totalPages}
             </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              disabled={page === (data.data?.totalPages || data.totalPages)}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page === data.totalPages}
               onClick={() => setPage(p => p + 1)}
             >
               Next
             </Button>
           </div>
         )}
-        
+
         {items.length === 0 && !isLoading && (
           <div className="text-center py-8 text-muted-foreground">
             <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -210,9 +206,9 @@ export function InventoryTable({ searchTerm = '', statusFilter = 'all', sortBy =
           </div>
         )}
       </CardContent>
-      
-      <ItemDialog 
-        open={showDialog} 
+
+      <ItemDialog
+        open={showDialog}
         onOpenChange={setShowDialog}
         item={selectedItem}
         onSuccess={() => {

@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,56 +10,257 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================
+// BETTER-AUTH MODELS
+// ============================================
+
 model User {
-  id               String        @id @default(cuid())
-  email            String        @unique
-  password         String
-  role             String        @default("user")
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  avatarUrl        String?
-  name             String?
-  twoFactorEnabled Boolean       @default(false)
-  twoFactorSecret  String?
-  items            Item[]
-  orders           Order[]
-  sessions         UserSession[]
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  name          String?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  sessions      Session[]
+  accounts      Account[]
+  members       Member[]
+  auditLogs     AuditLog[]
+
+  @@index([email])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  accountId         String
+  providerId        String
+  accessToken       String?
+  refreshToken      String?
+  idToken           String?
+  expiresAt         DateTime?
+  password          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, value])
+}
+
+// ============================================
+// ORGANIZATION / MULTI-TENANCY MODELS
+// ============================================
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  logo      String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  members       Member[]
+  invitations   Invitation[]
+  subscription  Subscription?
+  items         Item[]
+  categories    Category[]
+  suppliers     Supplier[]
+  orders        Order[]
+  shipments     Shipment[]
+  alerts        Alert[]
+  auditLogs     AuditLog[]
+
+  @@index([slug])
+}
+
+model Member {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  role           OrgRole  @default(MEMBER)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model Invitation {
+  id             String           @id @default(cuid())
+  organizationId String
+  email          String
+  role           OrgRole          @default(MEMBER)
+  status         InvitationStatus @default(PENDING)
+  expiresAt      DateTime
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, email])
+  @@index([email])
+}
+
+// ============================================
+// SUBSCRIPTION / BILLING MODELS
+// ============================================
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  organizationId     String             @unique
+  plan               SubscriptionPlan   @default(FREE)
+  status             SubscriptionStatus @default(TRIAL)
+  polarProductId     String?
+  polarSubscriptionId String?           @unique
+  polarCustomerId    String?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean            @default(false)
+  trialEndsAt        DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  payments     Payment[]
+
+  @@index([polarSubscriptionId])
+  @@index([organizationId])
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  subscriptionId String
+  polarPaymentId String?       @unique
+  amount         Int // in cents
+  currency       String        @default("USD")
+  status         PaymentStatus @default(PENDING)
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+}
+
+// ============================================
+// WAREHOUSE MANAGEMENT MODELS
+// ============================================
+
+model Category {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items        Item[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model Supplier {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  email          String?
+  phone          String?
+  address        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items        Item[]
+
+  @@index([organizationId])
 }
 
 model Item {
-  id          String      @id @default(cuid())
-  name        String
-  sku         String      @unique
-  quantity    Int         @default(0)
-  priceCents  Int         @default(0)
-  imageUrl    String?
-  description String?
-  ownerId     String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  alerts      Alert[]
-  owner       User?       @relation(fields: [ownerId], references: [id])
-  orderItems  OrderItem[]
+  id             String   @id @default(cuid())
+  organizationId String
+  categoryId     String?
+  supplierId     String?
+  name           String
+  sku            String
+  description    String?
+  quantity       Int      @default(0)
+  minQuantity    Int      @default(10) // Low stock threshold
+  priceCents     Int      @default(0)
+  imageUrl       String?
+  barcode        String?
+  location       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  @@index([name])
-  @@index([sku])
-  @@index([quantity])
-  @@index([ownerId])
-  @@index([updatedAt])
-  @@index([name, sku, description])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category     Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  supplier     Supplier?    @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  orderItems   OrderItem[]
+  alerts       Alert[]
+
+  @@unique([organizationId, sku])
+  @@index([organizationId])
+  @@index([organizationId, name])
+  @@index([barcode])
 }
 
 model Order {
-  id          String      @id @default(cuid())
-  orderNumber String      @unique
-  userId      String
-  status      OrderStatus @default(PENDING)
-  totalCents  Int         @default(0)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  user        User        @relation(fields: [userId], references: [id])
-  items       OrderItem[]
-  shipments   Shipment[]
+  id             String      @id @default(cuid())
+  organizationId String
+  orderNumber    String
+  status         OrderStatus @default(PENDING)
+  totalCents     Int         @default(0)
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items        OrderItem[]
+  shipments    Shipment[]
+
+  @@unique([organizationId, orderNumber])
+  @@index([organizationId])
+  @@index([status])
 }
 
 model OrderItem {
@@ -65,52 +269,114 @@ model OrderItem {
   itemId     String
   quantity   Int
   priceCents Int
-  item       Item   @relation(fields: [itemId], references: [id])
-  order      Order  @relation(fields: [orderId], references: [id])
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  item  Item  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([itemId])
 }
 
 model Shipment {
-  id                String    @id @default(cuid())
+  id                String           @id @default(cuid())
+  organizationId    String
   orderId           String
   carrier           String
-  trackingNumber    String
+  trackingNumber    String?
+  status            ShipmentStatus   @default(PENDING)
   destination       String
-  status            String    @default("Processing")
   shippedDate       DateTime?
   estimatedDelivery DateTime?
-  createdAt         DateTime  @default(now())
-  order             Order     @relation(fields: [orderId], references: [id])
+  deliveredDate     DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  order        Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([orderId])
+  @@index([trackingNumber])
 }
 
 model Alert {
-  id           String    @id @default(cuid())
-  type         AlertType
-  message      String
-  itemId       String?
-  severity     Severity  @default(LOW)
-  acknowledged Boolean   @default(false)
-  new          Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  item         Item?     @relation(fields: [itemId], references: [id])
+  id             String    @id @default(cuid())
+  organizationId String
+  itemId         String?
+  type           AlertType
+  severity       Severity  @default(LOW)
+  message        String
+  acknowledged   Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  item         Item?        @relation(fields: [itemId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([acknowledged])
 }
 
-model SystemSetting {
-  key       String   @id
-  value     String
-  updatedAt DateTime @updatedAt
-}
+// ============================================
+// AUDIT LOG MODEL
+// ============================================
 
-model UserSession {
-  id           String   @id @default(cuid())
-  userId       String
-  ipAddress    String
-  userAgent    String
-  lastActivity DateTime @default(now())
-  createdAt    DateTime @default(now())
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  action         String // "item.created", "order.updated", etc.
+  resourceType   String // "item", "order", etc.
+  resourceId     String?
+  metadata       Json?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
 
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
   @@index([userId])
-  @@index([lastActivity])
+  @@index([createdAt])
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
 }
 
 enum OrderStatus {
@@ -121,11 +387,19 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum ShipmentStatus {
+  PENDING
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+}
+
 enum AlertType {
   LOW_STOCK
   OUT_OF_STOCK
   ORDER_CREATED
   ORDER_STATUS_CHANGED
+  SHIPMENT_DELAYED
 }
 
 enum Severity {

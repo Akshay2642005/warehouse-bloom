@@ -16,7 +16,7 @@ export default function Inventory() {
     debounceMs: 300,
     minSearchLength: 0
   });
-  
+
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("name");
   const [showFilters, setShowFilters] = useState(false);
@@ -38,7 +38,7 @@ export default function Inventory() {
           <h1 className="text-3xl font-bold text-foreground">Inventory Management</h1>
           <p className="text-muted-foreground">Manage your warehouse inventory and stock levels.</p>
         </div>
-        <Button onClick={() => setShowDialog(true)} className="bg-yellow-500 hover:bg-yellow-600 text-black">
+        <Button onClick={() => setShowDialog(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add New Product
         </Button>
@@ -57,8 +57,8 @@ export default function Inventory() {
                 onClear={clearSearch}
                 className="flex-1"
               />
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setShowFilters(!showFilters)}
                 className={showFilters ? "bg-muted" : ""}
               >
@@ -72,7 +72,7 @@ export default function Inventory() {
                 </Button>
               )}
             </div>
-            
+
             {showFilters && (
               <div className="grid gap-4 md:grid-cols-3 pt-4 border-t">
                 <div className="space-y-2">
@@ -119,14 +119,14 @@ export default function Inventory() {
       </Card>
 
       {/* Inventory Table */}
-      <InventoryTable 
+      <InventoryTable
         searchTerm={debouncedTerm}
         statusFilter={statusFilter}
         sortBy={sortBy}
       />
-      
+
       {/* Add Item Dialog */}
-      <ItemDialog 
+      <ItemDialog
         open={showDialog}
         onOpenChange={setShowDialog}
         onSuccess={() => setShowDialog(false)}

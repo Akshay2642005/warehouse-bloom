@@ -1,8 +1,11 @@
 import { Router } from 'express';
-import { requireAuth } from '../middlewares/requireAuth';
-import { getDashboardStats, getDashboardAlerts } from '../controllers/dashboard.controller';
+import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireOrganization } from '../middleware/organization.middleware.js';
+import * as dashboardController from '../controllers/dashboard.controller.js';
 
 export const dashboardRouter = Router();
 
-dashboardRouter.get('/stats', requireAuth, getDashboardStats);
-dashboardRouter.get('/alerts', requireAuth, getDashboardAlerts);
+// All dashboard routes require authentication and organization context
+dashboardRouter.use(requireAuth, requireOrganization);
+
+dashboardRouter.get('/stats', dashboardController.getStats);

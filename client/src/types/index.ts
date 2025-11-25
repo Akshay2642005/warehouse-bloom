@@ -1,185 +1,276 @@
-// Global type definitions for the warehouse management system
-
-export interface ApiResponse<T = any> {
-  success: boolean;
-  message?: string;
-  data?: T;
-  errors?: Record<string, string> | string;
-}
-
 export interface User {
   id: string;
   email: string;
-  role: 'ADMIN' | 'MANAGER' | 'STAFF' | 'admin' | 'user';
+  emailVerified: boolean;
   name?: string;
-  avatarUrl?: string;
+  image?: string;
+  role?: string;
   twoFactorEnabled?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface UserProfile extends User {
-  _count?: {
-    items: number;
-  };
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  logo?: string;
+  metadata?: any;
+  createdAt: string;
+  updatedAt: string;
+  role?: OrgRole; // Current user's role in this org
 }
 
-export interface TwoFactorSetup {
-  secret: string;
-  qrCode: string;
+export enum OrgRole {
+  OWNER = 'OWNER',
+  ADMIN = 'ADMIN',
+  MEMBER = 'MEMBER',
 }
 
-export interface UserStats {
-  totalUsers: number;
-  adminCount: number;
-  userCount: number;
-  recentUsers: number;
+export interface Member {
+  id: string;
+  organizationId: string;
+  userId: string;
+  role: OrgRole;
+  user?: User;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Invitation {
+  id: string;
+  organizationId: string;
+  email: string;
+  role: OrgRole;
+  status: InvitationStatus;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export enum InvitationStatus {
+  PENDING = 'PENDING',
+  ACCEPTED = 'ACCEPTED',
+  EXPIRED = 'EXPIRED',
+  CANCELLED = 'CANCELLED',
+}
+
+export interface Category {
+  id: string;
+  organizationId: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Supplier {
+  id: string;
+  organizationId: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Item {
   id: string;
+  organizationId: string;
+  categoryId?: string;
+  supplierId?: string;
   name: string;
   sku: string;
+  description?: string;
   quantity: number;
+  minQuantity: number;
   priceCents: number;
   imageUrl?: string;
-  description?: string;
-  ownerId?: string;
+  barcode?: string;
+  location?: string;
   createdAt: string;
   updatedAt: string;
-  owner?: {
-    id: string;
-    email: string;
-    role: string;
-  };
-}
-
-export interface PaginatedResponse<T> {
-  items?: T[];
-  orders?: T[];
-  shipments?: T[];
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
-}
-
-export interface CreateItemData {
-  name: string;
-  sku: string;
-  quantity: number;
-  priceCents: number;
-  imageUrl?: string;
-  description?: string;
-}
-
-export interface UpdateItemData extends Partial<CreateItemData> {}
-
-export interface UpdateUserData {
-  email?: string;
-  name?: string;
-  avatarUrl?: string;
-  role?: string;
-}
-
-export interface UpdatePasswordData {
-  currentPassword: string;
-  newPassword: string;
-}
-
-export type OrderStatus = 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
-
-export interface OrderItem {
-  id: string;
-  quantity: number;
-  priceCents: number;
-  item: {
-    id: string;
-    name: string;
-    sku: string;
-  };
+  category?: Category;
+  supplier?: Supplier;
 }
 
 export interface Order {
   id: string;
+  organizationId: string;
   orderNumber: string;
   status: OrderStatus;
   totalCents: number;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
-  items: OrderItem[];
+  items?: OrderItem[];
+  shipments?: Shipment[];
 }
 
-export interface CreateOrderItem {
+export interface OrderItem {
+  id: string;
+  orderId: string;
   itemId: string;
   quantity: number;
+  priceCents: number;
+  item?: Item;
 }
 
-export interface DashboardStats {
-  totalItems: number;
-  lowStockCount: number;
-  totalValue: number;
+export enum OrderStatus {
+  PENDING = 'PENDING',
+  PROCESSING = 'PROCESSING',
+  SHIPPED = 'SHIPPED',
+  DELIVERED = 'DELIVERED',
+  CANCELLED = 'CANCELLED',
+}
+
+export interface Shipment {
+  id: string;
+  organizationId: string;
+  orderId: string;
+  carrier: string;
+  trackingNumber?: string;
+  status: ShipmentStatus;
+  destination: string;
+  shippedDate?: string;
+  estimatedDelivery?: string;
+  deliveredDate?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export enum ShipmentStatus {
+  PENDING = 'PENDING',
+  IN_TRANSIT = 'IN_TRANSIT',
+  DELIVERED = 'DELIVERED',
+  FAILED = 'FAILED',
 }
 
 export interface Alert {
   id: string;
-  name: string;
-  sku: string;
-  quantity: number;
-  priceCents: number;
-}
-
-export type ShipmentStatus = 'PENDING' | 'IN_TRANSIT' | 'DELIVERED' | 'RETURNED';
-
-export interface Shipment {
-  id: string;
-  trackingNumber: string;
-  status: ShipmentStatus;
-  orderId: string;
-  carrierName?: string;
-  estimatedDelivery?: string;
+  organizationId: string;
+  itemId?: string;
+  type: AlertType;
+  severity: Severity;
+  message: string;
+  acknowledged: boolean;
   createdAt: string;
   updatedAt: string;
-  order?: Order;
+  item?: Item;
 }
 
-export interface CreateShipmentData {
-  orderId: string;
-  carrierName?: string;
-  estimatedDelivery?: string;
+export enum AlertType {
+  LOW_STOCK = 'LOW_STOCK',
+  OUT_OF_STOCK = 'OUT_OF_STOCK',
+  ORDER_CREATED = 'ORDER_CREATED',
+  ORDER_STATUS_CHANGED = 'ORDER_STATUS_CHANGED',
+  SHIPMENT_DELAYED = 'SHIPMENT_DELAYED',
 }
 
-export interface LoginFormData {
-  email: string;
-  password: string;
+export enum Severity {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  CRITICAL = 'CRITICAL',
 }
 
-export interface RegisterFormData {
-  email: string;
-  password: string;
-  confirmPassword?: string;
+export interface Subscription {
+  id: string;
+  organizationId: string;
+  plan: SubscriptionPlan;
+  status: SubscriptionStatus;
+  currentPeriodStart?: string;
+  currentPeriodEnd?: string;
+  cancelAtPeriodEnd: boolean;
+  trialEndsAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface DialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void;
+export enum SubscriptionPlan {
+  FREE = 'FREE',
+  PRO = 'PRO',
+  ENTERPRISE = 'ENTERPRISE',
+}
+
+export enum SubscriptionStatus {
+  TRIAL = 'TRIAL',
+  ACTIVE = 'ACTIVE',
+  PAST_DUE = 'PAST_DUE',
+  CANCELED = 'CANCELED',
+  EXPIRED = 'EXPIRED',
+}
+
+export interface Payment {
+  id: string;
+  subscriptionId: string;
+  amount: number;
+  currency: string;
+  status: PaymentStatus;
+  paidAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED',
+}
+
+export interface AuditLog {
+  id: string;
+  organizationId: string;
+  userId: string;
+  action: string;
+  resourceType: string;
+  resourceId?: string;
+  metadata?: any;
+  ipAddress?: string;
+  userAgent?: string;
+  createdAt: string;
+  user?: User;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+  pagination?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export type CreateItemData = Omit<Item, 'id' | 'organizationId' | 'createdAt' | 'updatedAt' | 'category' | 'supplier'>;
+export type UpdateItemData = Partial<CreateItemData>;
+
+export interface QueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  categoryId?: string;
+  lowStock?: boolean;
+  [key: string]: any;
 }
 
 export interface ApiError {
   response?: {
     data?: {
       message?: string;
-      errors?: Record<string, string> | string;
     };
-    status?: number;
   };
-  message?: string;
-}
-
-export interface QueryParams {
-  page?: number;
-  pageSize?: number;
-  q?: string;
-  status?: string;
+  message: string;
 }

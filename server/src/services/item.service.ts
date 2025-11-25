@@ -1,264 +1,187 @@
-import { prisma } from '../utils/prisma';
-import { SearchService } from './search.service';
-import { getRedis } from '../utils/redis';
-import { logger } from '../utils/logger';
-import { AlertService } from './alert.service';
+import prisma from '../lib/prisma.js';
 
-export interface CreateItemData {
-  name: string;
-  sku: string;
-  quantity: number;
-  priceCents: number;
-  imageUrl?: string;
-  description?: string;
-  ownerId: string;
-}
-
-export interface UpdateItemData {
-  name?: string;
-  sku?: string;
-  quantity?: number;
-  priceCents?: number;
-  imageUrl?: string;
-  description?: string;
-}
-
-export interface GetItemsParams {
-  page: number;
-  pageSize: number;
-  search?: string;
-}
-
-/**
- * Service for item management operations.
- */
 export class ItemService {
   /**
-   * Creates a new item with SKU uniqueness check and cache invalidation.
+   * Get all items for an organization with pagination and filters
    */
-  static async createItem(data: CreateItemData) {
-    // Check SKU uniqueness with Redis cache
-    const cacheKey = `sku:${data.sku}`;
-    try {
-      const redis = getRedis();
-      const cached = await redis.get(cacheKey);
-      if (cached) {
-        throw new Error('SKU already exists');
-      }
-    } catch (error) {
-      logger.warn('Redis check failed, falling back to DB', { error: error.message });
+  static async getItems(
+    organizationId: string,
+    options: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      categoryId?: string;
+      lowStock?: boolean;
+    } = {}
+  ) {
+    const { page = 1, limit = 50, search, categoryId, lowStock } = options;
+    const skip = (page - 1) * limit;
+
+    const where: any = { organizationId };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { sku: { contains: search, mode: 'insensitive' } },
+        { barcode: { contains: search, mode: 'insensitive' } },
+      ];
     }
 
-    const existingItem = await prisma.item.findUnique({
-      where: { sku: data.sku }
-    });
-
-    if (existingItem) {
-      // Cache the SKU for future checks
-      try {
-        const redis = getRedis();
-        await redis.setEx(cacheKey, 3600, 'exists');
-      } catch (error) {
-        logger.warn('Failed to cache SKU', { error: error.message });
-      }
-      throw new Error('SKU already exists');
+    if (categoryId) {
+      where.categoryId = categoryId;
     }
 
-    const item = await prisma.item.create({
-      data,
-      include: {
-        owner: {
-          select: {
-            id: true,
-            email: true,
-            role: true
-          }
-        }
-      }
-    });
-
-    // Cache the new SKU and invalidate search cache
-    try {
-      const redis = getRedis();
-      await redis.setEx(cacheKey, 3600, 'exists');
-      await SearchService.invalidateCache('items');
-    } catch (error) {
-      logger.warn('Failed to update cache after item creation', { error: error.message });
+    if (lowStock) {
+      where.quantity = { lte: prisma.item.fields.minQuantity };
     }
 
-    return item;
+    const [items, total] = await Promise.all([
+      prisma.item.findMany({
+        where,
+        include: {
+          category: true,
+          supplier: true,
+        },
+        skip,
+        take: limit,
+        orderBy: { updatedAt: 'desc' },
+      }),
+      prisma.item.count({ where }),
+    ]);
+
+    return {
+      items,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   /**
-   * Gets items with pagination and search using optimized search service.
+   * Get single item by ID
    */
-  static async getItems({ page, pageSize, search }: GetItemsParams) {
-    return SearchService.searchItems({
-      query: search,
-      page,
-      pageSize,
-      filters: {}
-    });
-  }
-
-  /**
-   * Gets item by ID.
-   */
-  static async getItemById(id: string) {
-    return prisma.item.findUnique({
-      where: { id },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            email: true,
-            role: true
-          }
-        }
-      }
-    });
-  }
-
-  /**
-   * Updates item by ID with SKU uniqueness check and cache management.
-   */
-  static async updateItem(id: string, data: UpdateItemData) {
-    // Check if item exists
-    const existingItem = await prisma.item.findUnique({
-      where: { id }
-    });
-
-    if (!existingItem) {
-      return null;
-    }
-
-    // Check SKU uniqueness if SKU is being updated
-    if (data.sku && data.sku !== existingItem.sku) {
-      const skuExists = await prisma.item.findUnique({
-        where: { sku: data.sku }
-      });
-
-      if (skuExists) {
-        throw new Error('SKU already exists');
-      }
-    }
-
-    const updatedItem = await prisma.item.update({
-      where: { id },
-      data,
-      include: {
-        owner: {
-          select: {
-            id: true,
-            email: true,
-            role: true
-          }
-        }
-      }
-    });
-
-    // Update cache
-    try {
-      const redis = getRedis();
-      if (data.sku && data.sku !== existingItem.sku) {
-        // Remove old SKU from cache and add new one
-        await redis.del(`sku:${existingItem.sku}`);
-        await redis.setEx(`sku:${data.sku}`, 3600, 'exists');
-      }
-      await SearchService.invalidateCache('items');
-    } catch (error) {
-      logger.warn('Failed to update cache after item update', { error: error.message });
-    }
-
-    return updatedItem;
-  }
-
-  /**
-   * Deletes item by ID with cache cleanup.
-   */
-  static async deleteItem(id: string) {
-    try {
-      const item = await prisma.item.findUnique({ where: { id } });
-      if (!item) return false;
-
-      await prisma.item.delete({ where: { id } });
-      
-      // Clean up cache
-      try {
-        const redis = getRedis();
-        await redis.del(`sku:${item.sku}`);
-        await SearchService.invalidateCache('items');
-      } catch (error) {
-        logger.warn('Failed to clean cache after item deletion', { error: error.message });
-      }
-      
-      return true;
-    } catch (error) {
-      return false;
-    }
-  }
-
-  /**
-   * Updates item quantity (for inventory management).
-   */
-  static async updateQuantity(id: string, quantity: number) {
-    if (quantity < 0) {
-      throw new Error('Quantity cannot be negative');
-    }
-
-    return prisma.item.update({
-      where: { id },
-      data: { quantity }
-    });
-  }
-
-  /**
-   * Gets low stock items (quantity < threshold).
-   */
-  static async getLowStockItems(threshold: number = 10) {
-    return prisma.item.findMany({
+  static async getItemById(itemId: string, organizationId: string) {
+    return await prisma.item.findFirst({
       where: {
-        quantity: {
-          lt: threshold
-        }
+        id: itemId,
+        organizationId,
       },
       include: {
-        owner: {
-          select: {
-            id: true,
-            email: true,
-            role: true
-          }
-        }
+        category: true,
+        supplier: true,
       },
-      orderBy: { quantity: 'asc' }
     });
   }
 
   /**
-   * Restock item (add to existing quantity).
+   * Create new item
    */
-  static async restockItem(id: string, amount: number) {
-    const item = await prisma.item.findUnique({ where: { id } });
-    if (!item) return null;
-
-    const updatedItem = await prisma.item.update({
-      where: { id },
-      data: { quantity: item.quantity + amount },
+  static async createItem(organizationId: string, data: {
+    name: string;
+    sku: string;
+    description?: string;
+    quantity?: number;
+    minQuantity?: number;
+    priceCents?: number;
+    categoryId?: string;
+    supplierId?: string;
+    imageUrl?: string;
+    barcode?: string;
+    location?: string;
+  }) {
+    return await prisma.item.create({
+      data: {
+        ...data,
+        organizationId,
+      },
       include: {
-        owner: {
-          select: {
-            id: true,
-            email: true,
-            role: true
-          }
-        }
-      }
+        category: true,
+        supplier: true,
+      },
+    });
+  }
+
+  /**
+   * Update item
+   */
+  static async updateItem(
+    itemId: string,
+    organizationId: string,
+    data: Partial<{
+      name: string;
+      sku: string;
+      description: string;
+      quantity: number;
+      minQuantity: number;
+      priceCents: number;
+      categoryId: string;
+      supplierId: string;
+      imageUrl: string;
+      barcode: string;
+      location: string;
+    }>
+  ) {
+    return await prisma.item.update({
+      where: {
+        id: itemId,
+        organizationId,
+      },
+      data,
+      include: {
+        category: true,
+        supplier: true,
+      },
+    });
+  }
+
+  /**
+   * Delete item
+   */
+  static async deleteItem(itemId: string, organizationId: string) {
+    await prisma.item.delete({
+      where: {
+        id: itemId,
+        organizationId,
+      },
+    });
+  }
+
+  /**
+   * Adjust item quantity (for stock in/out)
+   */
+  static async adjustQuantity(
+    itemId: string,
+    organizationId: string,
+    adjustment: number
+  ) {
+    const item = await prisma.item.findFirst({
+      where: { id: itemId, organizationId },
     });
 
-    // Check for low stock alert after restocking
-    await AlertService.createLowStockAlert(id, updatedItem.quantity);
+    if (!item) throw new Error('Item not found');
 
-    return updatedItem;
+    const newQuantity = Math.max(0, item.quantity + adjustment);
+
+    // Check for low stock alert
+    if (newQuantity <= item.minQuantity && item.quantity > item.minQuantity) {
+      // Create low stock alert
+      await prisma.alert.create({
+        data: {
+          organizationId,
+          itemId,
+          type: 'LOW_STOCK',
+          severity: newQuantity === 0 ? 'CRITICAL' : 'MEDIUM',
+          message: `${item.name} is ${newQuantity === 0 ? 'out of stock' : 'running low'}`,
+        },
+      });
+    }
+
+    return await prisma.item.update({
+      where: { id: itemId },
+      data: { quantity: newQuantity },
+    });
   }
 }

@@ -1,4 +1,3 @@
-// src/UserContext.tsx
 import {
   createContext,
   useContext,
@@ -8,6 +7,8 @@ import {
 } from "react";
 import { useQueryClient } from '@tanstack/react-query';
 import { getCurrentUser } from "../api/auth";
+import { authClient } from "@/lib/auth";
+import { useOrganizationStore } from "@/stores/organization.store";
 import type { User } from "@/types";
 
 interface UserContextType {
@@ -22,6 +23,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const { setActiveOrg } = useOrganizationStore();
 
   useEffect(() => {
     // Try to get user from localStorage first
@@ -37,10 +39,20 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
     // Then verify with server and get latest data
     getCurrentUser()
-      .then((userData) => {
+      .then(async (userData) => {
         if (userData) {
           setUser(userData);
           localStorage.setItem('user', JSON.stringify(userData));
+
+          // Also fetch and set active organization from better-auth session
+          try {
+            const { data: sessionData } = await authClient.getSession();
+            if (sessionData?.session?.activeOrganizationId) {
+              setActiveOrg(sessionData.session.activeOrganizationId);
+            }
+          } catch (error) {
+            console.error('Failed to load active organization:', error);
+          }
         } else {
           setUser(null);
           localStorage.removeItem('user');
@@ -51,7 +63,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         localStorage.removeItem('user');
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [setActiveOrg]);
 
   const queryClient = useQueryClient();
 
@@ -82,7 +94,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const value: UserContextType = { user, setUser: updateUser, loading, refreshUser };
-  
+
   return (
     <UserContext.Provider value={value}>
       {children}

@@ -1,126 +1,198 @@
+// @ts-nocheck
 import { PrismaClient } from '@prisma/client';
-import { hashPassword } from '../src/utils/password';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  console.log('🌱 Starting database seeding...');
+async function seed() {
+  console.log('🌱 Seeding database...');
 
-  // Create admin user
-  const adminPassword = await hashPassword('admin123');
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@warehouse.com' },
-    update: {},
-    create: {
-      email: 'admin@warehouse.com',
-      password: adminPassword,
-      role: 'admin'
-    }
-  });
+  // 1. Create Demo User
+  // We create the user record directly. In a real scenario, you'd use the auth library to hash passwords.
+  // For dev convenience, we'll assume the user will "Sign Up" with this email to set their password,
+  // or we just rely on the existence of the user record for other relations.
+  const demoEmail = 'demo@warehouse-bloom.com';
+  let demoUser = await prisma.user.findUnique({ where: { email: demoEmail } });
 
-  // Create regular user
-  const userPassword = await hashPassword('user123');
-  const user = await prisma.user.upsert({
-    where: { email: 'user@warehouse.com' },
-    update: {},
-    create: {
-      email: 'user@warehouse.com',
-      password: userPassword,
-      role: 'user'
-    }
-  });
-
-  // Create sample items
-  const sampleItems = [
-    {
-      name: 'Wireless Headphones',
-      sku: 'WH-001',
-      quantity: 45,
-      priceCents: 9999,
-      description: 'High-quality wireless headphones with noise cancellation',
-      imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400',
-      ownerId: admin.id
-    },
-    {
-      name: 'Gaming Keyboard',
-      sku: 'GK-002',
-      quantity: 8,
-      priceCents: 12999,
-      description: 'Mechanical gaming keyboard with RGB lighting',
-      imageUrl: 'https://images.unsplash.com/photo-1541140532154-b024d705b90a?w=400',
-      ownerId: admin.id
-    },
-    {
-      name: 'Office Chair',
-      sku: 'OC-003',
-      quantity: 0,
-      priceCents: 29999,
-      description: 'Ergonomic office chair with lumbar support',
-      imageUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400',
-      ownerId: user.id
-    },
-    {
-      name: 'Desk Lamp',
-      sku: 'DL-004',
-      quantity: 32,
-      priceCents: 4999,
-      description: 'LED desk lamp with adjustable brightness',
-      imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
-      ownerId: user.id
-    },
-    {
-      name: 'Water Bottle',
-      sku: 'WB-005',
-      quantity: 12,
-      priceCents: 1999,
-      description: 'Stainless steel water bottle with temperature control',
-      imageUrl: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=400',
-      ownerId: admin.id
-    },
-    {
-      name: 'Laptop Stand',
-      sku: 'LS-006',
-      quantity: 25,
-      priceCents: 7999,
-      description: 'Adjustable aluminum laptop stand',
-      imageUrl: 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400',
-      ownerId: user.id
-    },
-    {
-      name: 'Wireless Mouse',
-      sku: 'WM-007',
-      quantity: 3,
-      priceCents: 5999,
-      description: 'Ergonomic wireless mouse with precision tracking',
-      imageUrl: 'https://images.unsplash.com/photo-1527814050087-3793815479db?w=400',
-      ownerId: admin.id
-    },
-    {
-      name: 'Monitor Stand',
-      sku: 'MS-008',
-      quantity: 18,
-      priceCents: 8999,
-      description: 'Dual monitor stand with cable management',
-      imageUrl: 'https://images.unsplash.com/photo-1547394765-185e1e68f34e?w=400',
-      ownerId: user.id
-    }
-  ];
-
-  for (const item of sampleItems) {
-    await prisma.item.upsert({
-      where: { sku: item.sku },
-      update: {},
-      create: item
+  if (!demoUser) {
+    demoUser = await prisma.user.create({
+      data: {
+        email: demoEmail,
+        name: 'Demo User',
+        emailVerified: true,
+        image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+      },
     });
+    console.log('✅ Created demo user');
+  } else {
+    console.log('ℹ️ Demo user already exists');
   }
 
-  console.log('✅ Database seeding completed!');
-  console.log(`👤 Admin user: admin@warehouse.com / admin123`);
-  console.log(`👤 Regular user: user@warehouse.com / user123`);
-  console.log(`📦 Created ${sampleItems.length} sample items`);
+  // 2. Create Organization
+  const demoOrg = await prisma.organization.upsert({
+    where: { slug: 'demo-warehouse' },
+    update: {},
+    create: {
+      name: 'Bloom Logistics',
+      slug: 'demo-warehouse',
+      logo: 'https://api.dicebear.com/7.x/initials/svg?seed=BL',
+    },
+  });
+  console.log('✅ Created organization');
+
+  // 3. Add Member
+  await prisma.member.upsert({
+    where: {
+      organizationId_userId: {
+        organizationId: demoOrg.id,
+        userId: demoUser.id,
+      },
+    },
+    update: {},
+    create: {
+      organizationId: demoOrg.id,
+      userId: demoUser.id,
+      role: 'OWNER',
+    },
+  });
+
+  // 4. Subscription
+  await prisma.subscription.upsert({
+    where: { organizationId: demoOrg.id },
+    update: {},
+    create: {
+      organizationId: demoOrg.id,
+      plan: 'PRO',
+      status: 'ACTIVE',
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date(new Date().setMonth(new Date().getMonth() + 1)),
+    },
+  });
+
+  // 5. Categories
+  const categoriesData = [
+    { name: 'Electronics', description: 'Gadgets and devices' },
+    { name: 'Apparel', description: 'Clothing and accessories' },
+    { name: 'Home & Garden', description: 'Furniture and decor' },
+  ];
+
+  const categories = [];
+  for (const cat of categoriesData) {
+    const c = await prisma.category.upsert({
+      where: { organizationId_name: { organizationId: demoOrg.id, name: cat.name } },
+      update: {},
+      create: { ...cat, organizationId: demoOrg.id },
+    });
+    categories.push(c);
+  }
+  console.log('✅ Created categories');
+
+  // 6. Suppliers
+  const supplier = await prisma.supplier.create({
+    data: {
+      organizationId: demoOrg.id,
+      name: 'Global Tech Distributors',
+      email: 'contact@globaltech.com',
+      phone: '+1 (555) 123-4567',
+      address: '123 Tech Blvd, San Francisco, CA',
+    },
+  });
+
+  // 7. Items
+  const itemsData = [
+    {
+      name: 'Pro Wireless Headset',
+      sku: 'AUDIO-001',
+      description: 'Noise cancelling wireless headphones',
+      quantity: 45,
+      minQuantity: 10,
+      priceCents: 19999,
+      categoryId: categories[0].id,
+    },
+    {
+      name: 'Ergonomic Office Chair',
+      sku: 'FURN-001',
+      description: 'Mesh back support chair',
+      quantity: 12,
+      minQuantity: 5,
+      priceCents: 24999,
+      categoryId: categories[2].id,
+    },
+    {
+      name: 'Cotton T-Shirt (L)',
+      sku: 'CLOTH-001',
+      description: '100% Cotton Basic Tee',
+      quantity: 150,
+      minQuantity: 50,
+      priceCents: 1999,
+      categoryId: categories[1].id,
+    },
+    {
+      name: 'Smart Watch Series 5',
+      sku: 'TECH-002',
+      description: 'Advanced fitness tracking',
+      quantity: 8, // Low stock!
+      minQuantity: 15,
+      priceCents: 39999,
+      categoryId: categories[0].id,
+    },
+  ];
+
+  const items = [];
+  for (const item of itemsData) {
+    const i = await prisma.item.upsert({
+      where: { organizationId_sku: { organizationId: demoOrg.id, sku: item.sku } },
+      update: {},
+      create: { ...item, organizationId: demoOrg.id, supplierId: supplier.id },
+    });
+    items.push(i);
+  }
+  console.log('✅ Created items');
+
+  // 8. Orders & OrderItems
+  const order = await prisma.order.create({
+    data: {
+      organizationId: demoOrg.id,
+      orderNumber: 'ORD-2023-001',
+      status: 'PROCESSING',
+      totalCents: 21998,
+      items: {
+        create: [
+          { itemId: items[0].id, quantity: 1, priceCents: 19999 },
+          { itemId: items[2].id, quantity: 1, priceCents: 1999 },
+        ],
+      },
+    },
+  });
+  console.log('✅ Created sample order');
+
+  // 9. Shipments
+  await prisma.shipment.create({
+    data: {
+      organizationId: demoOrg.id,
+      orderId: order.id,
+      carrier: 'FedEx',
+      trackingNumber: 'TRK123456789',
+      status: 'PENDING',
+      destination: '123 Main St, New York, NY',
+    },
+  });
+
+  // 10. Alerts
+  await prisma.alert.create({
+    data: {
+      organizationId: demoOrg.id,
+      type: 'LOW_STOCK',
+      severity: 'HIGH',
+      message: 'Smart Watch Series 5 is below minimum quantity (8/15)',
+      itemId: items[3].id,
+    },
+  });
+  console.log('✅ Created alerts');
+
+  console.log('\n🎉 Seeding completed successfully!');
 }
 
-main()
+seed()
   .catch((e) => {
     console.error('❌ Seeding failed:', e);
     process.exit(1);

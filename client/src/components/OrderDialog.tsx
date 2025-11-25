@@ -8,6 +8,7 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { createOrderApi } from '@/api/orders';
 import { fetchItems } from '@/api/items';
 import { toast } from "sonner";
+import { useOrganizationStore } from '@/stores/organization.store';
 
 interface OrderDialogProps {
   open: boolean;
@@ -20,12 +21,22 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
   const [items, setItems] = useState([{ itemId: '', quantity: 1 }]);
   const [status, setStatus] = useState('PENDING');
   const queryClient = useQueryClient();
-  
+  const { activeOrgId } = useOrganizationStore();
+
   const { data: availableItems } = useQuery({
-    queryKey: ['items', 'for-orders'],
-    queryFn: () => fetchItems({ pageSize: 100 }),
-    staleTime: 0
+    queryKey: ['items', 'for-orders', activeOrgId],
+    queryFn: () => {
+      if (!activeOrgId) return null;
+      return fetchItems({ pageSize: 100 });
+    },
+    staleTime: 0,
+    enabled: !!activeOrgId
   });
+
+  const resetForm = () => {
+    setItems([{ itemId: '', quantity: 1 }]);
+    setStatus('PENDING');
+  };
 
   const createMutation = useMutation({
     mutationFn: createOrderApi,
@@ -41,7 +52,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) => 
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
       import('@/api/orders').then(api => api.updateOrderStatusApi(id, status as any)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
@@ -51,11 +62,6 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
     },
     onError: () => toast.error('Failed to update order')
   });
-
-  const resetForm = () => {
-    setItems([{ itemId: '', quantity: 1 }]);
-    setStatus('PENDING');
-  };
 
   useEffect(() => {
     if (order) {
@@ -68,7 +74,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (order) {
       updateMutation.mutate({ id: order.id, status });
     } else {
@@ -101,7 +107,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
         <DialogHeader>
           <DialogTitle>{order ? 'Edit Order' : 'Create New Order'}</DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-4">
             {order ? (
@@ -128,7 +134,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                     Add Item
                   </Button>
                 </div>
-            
+
                 {items.map((item, index) => (
                   <div key={index} className="flex gap-2 items-end">
                     <div className="flex-1">
@@ -138,7 +144,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           <SelectValue placeholder="Select item" />
                         </SelectTrigger>
                         <SelectContent>
-                          {(availableItems?.data?.items || availableItems?.items || []).map((availableItem) => (
+                          {(availableItems?.items || []).map((availableItem) => (
                             <SelectItem key={availableItem.id} value={availableItem.id}>
                               {availableItem.name} ({availableItem.sku})
                             </SelectItem>
@@ -165,12 +171,12 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
               </>
             )}
           </div>
-          
+
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="bg-yellow-500 hover:bg-yellow-600 text-black">
+            <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
               {order ? 'Update Order' : 'Create Order'}
             </Button>
           </div>

@@ -6,15 +6,22 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchItems } from '@/api/items';
 import { useState } from 'react';
 import { ItemDialog } from './ItemDialog';
+import { useOrganizationStore } from '@/stores/organization.store';
+import { Item } from '@/types';
 
 export function ProductTable() {
   const [page, setPage] = useState(1);
   const [showDialog, setShowDialog] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
-  
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const { activeOrgId } = useOrganizationStore();
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['items', page],
-    queryFn: () => fetchItems({ page, pageSize: 10 })
+    queryKey: ['items', page, activeOrgId],
+    queryFn: () => {
+      if (!activeOrgId) return null;
+      return fetchItems({ page, pageSize: 10 });
+    },
+    enabled: !!activeOrgId
   });
 
   const getStatusBadge = (stock: number) => {
@@ -101,12 +108,12 @@ export function ProductTable() {
             </tbody>
           </table>
         </div>
-        
+
         {data && data.totalPages > 1 && (
           <div className="flex justify-center mt-4 gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               disabled={page === 1}
               onClick={() => setPage(p => p - 1)}
             >
@@ -115,9 +122,9 @@ export function ProductTable() {
             <span className="flex items-center px-3 text-sm">
               Page {page} of {data.totalPages}
             </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               disabled={page === data.totalPages}
               onClick={() => setPage(p => p + 1)}
             >
@@ -126,9 +133,9 @@ export function ProductTable() {
           </div>
         )}
       </CardContent>
-      
-      <ItemDialog 
-        open={showDialog} 
+
+      <ItemDialog
+        open={showDialog}
         onOpenChange={setShowDialog}
         item={selectedItem}
         onSuccess={() => {

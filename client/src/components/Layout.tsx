@@ -10,6 +10,9 @@ import { logoutUser } from '@/api/auth';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext'; // your context hook
+import { useOrganizationStore } from '@/stores/organization.store';
+import { fetchUserOrganizations } from '@/api/organizations';
+import { useEffect } from "react";
 
 interface LayoutProps {
   children: ReactNode;
@@ -19,6 +22,24 @@ export function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, setUser } = useUser(); // access user context
+  const { activeOrgId, setActiveOrg, setOrganizations } = useOrganizationStore();
+
+  useEffect(() => {
+    const loadOrgs = async () => {
+      try {
+        const orgs = await fetchUserOrganizations();
+        setOrganizations(orgs);
+        if (!activeOrgId && orgs.length > 0) {
+          setActiveOrg(orgs[0].id);
+        }
+      } catch (error) {
+        console.error("Failed to load organizations", error);
+      }
+    };
+    if (user) {
+      loadOrgs();
+    }
+  }, [user, activeOrgId, setActiveOrg, setOrganizations]);
 
   const logoutMutation = useMutation({
     mutationFn: logoutUser,
@@ -27,6 +48,7 @@ export function Layout({ children }: LayoutProps) {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
       setUser(null);
+      useOrganizationStore.getState().clearOrganizations();
 
       toast({ title: "Success", description: "Logged out successfully" });
       navigate('/', { replace: true });

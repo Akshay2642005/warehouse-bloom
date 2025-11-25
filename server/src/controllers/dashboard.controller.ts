@@ -1,70 +1,56 @@
-import { Request, Response } from 'express';
-import { prisma } from '../utils/prisma';
-import { createResponse } from '../utils/apiResponse';
+import { Response } from 'express';
+import { OrgRequest } from '../middleware/organization.middleware.js';
+import prisma from '../lib/prisma.js';
 
-export async function getDashboardStats(req: Request, res: Response): Promise<void> {
-  try {
-    const [
-      totalItems,
-      lowStockItems,
-      totalOrders,
-      pendingOrders,
-      totalValue
-    ] = await Promise.all([
-      prisma.item.count(),
-      prisma.item.count({ where: { quantity: { lte: 10 } } }),
-      prisma.order.count(),
-      prisma.order.count({ where: { status: 'PENDING' } }),
-      prisma.item.aggregate({
-        _sum: {
-          priceCents: true
-        }
-      })
-    ]);
+/**
+ * Get dashboard statistics
+ * GET /api/dashboard/stats
+ */
+export async function getStats(req: OrgRequest, res: Response): Promise<void> {
+  const orgId = req.organization!.id;
 
-    const stats = {
-      totalItems,
-      lowStockCount: lowStockItems,
-      totalOrders,
-      pendingOrders,
-      totalValue: totalValue._sum.priceCents || 0
-    };
+  const [totalItems, lowStockCount, totalValueResult] = await Promise.all([
+    // Total items count
+    prisma.item.count({
+      where: { organizationId: orgId },
+    }),
 
-    res.json(createResponse({
-      data: stats,
-      message: 'Dashboard stats retrieved successfully'
-    }));
-  } catch (error) {
-    res.status(500).json(createResponse({
-      success: false,
-      message: 'Failed to retrieve dashboard stats'
-    }));
-  }
-}
-
-export async function getDashboardAlerts(req: Request, res: Response): Promise<void> {
-  try {
-    // Get low stock items (quantity <= 10)
-    const lowStockItems = await prisma.item.findMany({
-      where: { quantity: { lte: 10 } },
-      select: {
-        id: true,
-        name: true,
-        sku: true,
-        quantity: true,
-        priceCents: true
+    // Low stock items count
+    prisma.item.count({
+      where: {
+        organizationId: orgId,
+        quantity: {
+          lte: prisma.item.fields.minQuantity,
+        },
       },
-      orderBy: { quantity: 'asc' }
-    });
+    }),
 
-    res.json(createResponse({
-      data: { alerts: lowStockItems },
-      message: 'Alerts retrieved successfully'
-    }));
-  } catch (error) {
-    res.status(500).json(createResponse({
-      success: false,
-      message: 'Failed to retrieve alerts'
-    }));
-  }
+    // Total value of inventory
+    prisma.item.aggregate({
+      where: { organizationId: orgId },
+      _sum: {
+        priceCents: true, // This is actually price * quantity, but we need to do it carefully
+      },
+    }),
+  ]);
+
+  // Prisma doesn't support sum(price * quantity) directly in aggregate easily without raw query
+  // For now, let's fetch all items and calculate or use a raw query
+  // Using raw query for performance
+  const totalValueRaw = await prisma.$queryRaw<{ total: bigint }[]>`
+    SELECT SUM(quantity * "priceCents") as total
+    FROM "Item"
+    WHERE "organizationId" = ${orgId}
+  `;
+
+  const totalValue = totalValueRaw[0]?.total ? Number(totalValueRaw[0].total) : 0;
+
+  res.json({
+    success: true,
+    data: {
+      totalItems,
+      lowStockCount,
+      totalValue,
+    },
+  });
 }

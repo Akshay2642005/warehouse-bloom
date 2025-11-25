@@ -14,7 +14,7 @@ export default function Signup() {
     password: '',
     confirmPassword: ''
   });
-  
+
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -27,7 +27,7 @@ export default function Signup() {
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.response?.data?.message || "Registration failed",
+        description: error.message || "Registration failed",
         variant: "destructive"
       });
     }
@@ -35,7 +35,7 @@ export default function Signup() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (formData.password !== formData.confirmPassword) {
       toast({
         title: "Error",
@@ -70,7 +70,7 @@ export default function Signup() {
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
@@ -94,10 +94,10 @@ export default function Signup() {
                 minLength={8}
               />
             </div>
-            
-            <Button 
-              type="submit" 
-              className="w-full" 
+
+            <Button
+              type="submit"
+              className="w-full"
               disabled={signupMutation.isPending}
             >
               {signupMutation.isPending ? 'Creating Account...' : 'Sign Up'}
