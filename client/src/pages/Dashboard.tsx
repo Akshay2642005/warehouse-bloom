@@ -5,11 +5,18 @@ import { InventoryChart } from "@/components/InventoryChart";
 import { ProductTable } from "@/components/ProductTable";
 import { useQuery } from '@tanstack/react-query';
 import { fetchDashboardStats } from '@/api/dashboard';
+import { useOrganizationStore } from '@/stores/organization.store';
 
 export default function Dashboard() {
+  const { activeOrgId } = useOrganizationStore();
+
   const { data: stats, isLoading } = useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: fetchDashboardStats
+    queryKey: ['dashboard-stats', activeOrgId],
+    queryFn: async () => {
+      if (!activeOrgId) return null;
+      return fetchDashboardStats();
+    },
+    enabled: !!activeOrgId
   });
 
   const formatCurrency = (cents: number) => {
@@ -61,11 +68,11 @@ export default function Dashboard() {
       </div>
 
       {/* Charts and Tables */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="grid gap-6 lg:grid-cols-7">
+        <div className="lg:col-span-4">
           <InventoryChart />
         </div>
-        <div>
+        <div className="lg:col-span-3">
           <RecentActivity />
         </div>
       </div>

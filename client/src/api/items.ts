@@ -7,8 +7,14 @@ export type { Item, CreateItemData };
  * Fetches a paginated list of items.
  */
 export async function fetchItems(params?: QueryParams): Promise<PaginatedResponse<Item>> {
-  const response = await axiosInstance.get<ApiResponse<PaginatedResponse<Item>>>('/items', { params });
-  return response.data.data!;
+  const response = await axiosInstance.get<ApiResponse<Item[]>>('/items', { params });
+  return {
+    items: response.data.data,
+    total: response.data.pagination?.total || 0,
+    page: response.data.pagination?.page || 1,
+    limit: response.data.pagination?.limit || 10,
+    totalPages: response.data.pagination?.totalPages || 1,
+  };
 }
 
 /**
@@ -40,4 +46,4 @@ export async function updateItemByIdApi(id: string, data: UpdateItemData): Promi
  */
 export async function deleteItemByIdApi(id: string): Promise<void> {
   await axiosInstance.delete(`/items/${id}`);
-} 
+}

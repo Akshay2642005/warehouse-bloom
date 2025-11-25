@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { axiosInstance } from '@/api/axiosInstance';
 import { useToast } from '@/hooks/use-toast';
+import { useOrganizationStore } from '@/stores/organization.store';
 
 interface Alert {
   id: string;
@@ -25,15 +26,18 @@ export function RealTimeAlerts() {
   const [showAlerts, setShowAlerts] = useState(false);
   const { toast } = useToast();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { activeOrgId } = useOrganizationStore();
 
   const { data: alertsData, refetch } = useQuery({
-    queryKey: ['realtime-alerts'],
+    queryKey: ['realtime-alerts', activeOrgId],
     queryFn: async () => {
+      if (!activeOrgId) return [];
       const response = await axiosInstance.get('/alerts?acknowledged=false');
       return response.data.data?.alerts || [];
     },
     refetchInterval: 30000,
     staleTime: 0,
+    enabled: !!activeOrgId,
   });
 
   useEffect(() => {
@@ -115,7 +119,7 @@ export function RealTimeAlerts() {
       >
         <Bell className="h-4 w-4" />
         {unacknowledgedCount > 0 && (
-          <Badge 
+          <Badge
             className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
             variant="destructive"
           >

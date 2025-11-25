@@ -21,6 +21,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
     name: '',
     sku: '',
     quantity: 0,
+    minQuantity: 0,
     priceCents: 0,
     imageUrl: '',
     description: ''
@@ -37,8 +38,8 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
       onSuccess?.();
     },
     onError: (error: ApiError) => {
-      toast({ 
-        title: "Error", 
+      toast({
+        title: "Error",
         description: error.response?.data?.message || "Failed to create item",
         variant: "destructive"
       });
@@ -53,8 +54,8 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
       onSuccess?.();
     },
     onError: (error: ApiError) => {
-      toast({ 
-        title: "Error", 
+      toast({
+        title: "Error",
         description: error.response?.data?.message || "Failed to update item",
         variant: "destructive"
       });
@@ -67,6 +68,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
         name: item.name,
         sku: item.sku,
         quantity: item.quantity,
+        minQuantity: item.minQuantity || 0,
         priceCents: item.priceCents,
         imageUrl: item.imageUrl || '',
         description: item.description || ''
@@ -76,6 +78,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
         name: '',
         sku: '',
         quantity: 0,
+        minQuantity: 0,
         priceCents: 0,
         imageUrl: '',
         description: ''
@@ -85,7 +88,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (item) {
       updateMutation.mutate({ id: item.id, data: formData });
     } else {
@@ -101,7 +104,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
         <DialogHeader>
           <DialogTitle>{item ? 'Edit Item' : 'Add New Item'}</DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
@@ -112,7 +115,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
               required
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="sku">SKU</Label>
             <Input
@@ -122,7 +125,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
               required
             />
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="quantity">Quantity</Label>
@@ -135,21 +138,33 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="price">Price ($)</Label>
+              <Label htmlFor="minQuantity">Min Quantity</Label>
               <Input
-                id="price"
+                id="minQuantity"
                 type="number"
                 min="0"
-                step="0.01"
-                value={formData.priceCents / 100}
-                onChange={(e) => setFormData(prev => ({ ...prev, priceCents: Math.round(parseFloat(e.target.value) * 100) || 0 }))}
+                value={formData.minQuantity}
+                onChange={(e) => setFormData(prev => ({ ...prev, minQuantity: parseInt(e.target.value) || 0 }))}
                 required
               />
             </div>
           </div>
-          
+
+          <div className="space-y-2">
+            <Label htmlFor="price">Price ($)</Label>
+            <Input
+              id="price"
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.priceCents / 100}
+              onChange={(e) => setFormData(prev => ({ ...prev, priceCents: Math.round(parseFloat(e.target.value) * 100) || 0 }))}
+              required
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="imageUrl">Image URL (optional)</Label>
             <Input
@@ -159,7 +174,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
               onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="description">Description (optional)</Label>
             <Textarea
@@ -169,12 +184,12 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
               rows={3}
             />
           </div>
-          
+
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading} className="bg-yellow-500 hover:bg-yellow-600 text-black">
+            <Button type="submit" disabled={isLoading}>
               {isLoading ? 'Saving...' : (item ? 'Update' : 'Create')}
             </Button>
           </div>

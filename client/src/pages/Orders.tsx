@@ -11,14 +11,14 @@ import { OrderDialog } from '@/components/OrderDialog';
 export default function Orders() {
   const [showDialog, setShowDialog] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  
+
   const { data } = useQuery({
     queryKey: ['orders-stats'],
     queryFn: () => fetchOrders({ page: 1, pageSize: 1000 }),
     staleTime: 0,
     refetchOnWindowFocus: true
   });
-  
+
   const orders = data?.data?.orders || data?.orders || [];
   const total = data?.data?.total || data?.total || orders.length;
 
@@ -30,7 +30,7 @@ export default function Orders() {
           <h1 className="text-3xl font-bold text-foreground">Order Management</h1>
           <p className="text-muted-foreground">Track and manage customer orders and fulfillment.</p>
         </div>
-        <Button onClick={() => { setSelectedOrder(null); setShowDialog(true); }} className="bg-yellow-500 hover:bg-yellow-600 text-black w-full sm:w-auto">
+        <Button onClick={() => { setSelectedOrder(null); setShowDialog(true); }} className="w-full sm:w-auto">
           <ShoppingCart className="h-4 w-4 mr-2" />
           New Order
         </Button>
@@ -54,7 +54,7 @@ export default function Orders() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Processing</p>
-                <p className="text-2xl font-bold text-info">{orders.filter(o => o.status === 'PROCESSING').length}</p>
+                <p className="text-2xl font-bold text-info">{orders.filter((o: any) => o.status === 'PROCESSING').length}</p>
               </div>
               <Package className="h-8 w-8 text-info" />
             </div>
@@ -65,7 +65,7 @@ export default function Orders() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Shipped</p>
-                <p className="text-2xl font-bold text-warning">{orders.filter(o => o.status === 'SHIPPED').length}</p>
+                <p className="text-2xl font-bold text-warning">{orders.filter((o: any) => o.status === 'SHIPPED').length}</p>
               </div>
               <Truck className="h-8 w-8 text-warning" />
             </div>
@@ -76,7 +76,7 @@ export default function Orders() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Delivered</p>
-                <p className="text-2xl font-bold text-success">{orders.filter(o => o.status === 'DELIVERED').length}</p>
+                <p className="text-2xl font-bold text-success">{orders.filter((o: any) => o.status === 'DELIVERED').length}</p>
               </div>
               <Package className="h-8 w-8 text-success" />
             </div>
@@ -86,10 +86,10 @@ export default function Orders() {
 
       {/* Orders Table */}
       <OrderTable />
-      
+
       {/* Order Dialog */}
-      <OrderDialog 
-        open={showDialog} 
+      <OrderDialog
+        open={showDialog}
         onOpenChange={setShowDialog}
         order={selectedOrder}
         onSuccess={() => {

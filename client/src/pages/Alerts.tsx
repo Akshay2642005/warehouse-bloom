@@ -7,17 +7,23 @@ import { AlertTriangle, CheckCircle, XCircle, Clock, Bell } from "lucide-react";
 import { fetchAlerts } from '@/api/dashboard';
 import { acknowledgeAlert, restockItem } from '@/api/alerts';
 import { useToast } from '@/hooks/use-toast';
+import { useOrganizationStore } from '@/stores/organization.store';
 
 export default function Alerts() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { activeOrgId } = useOrganizationStore();
   const { data: alerts = [], isLoading } = useQuery({
-    queryKey: ['alerts'],
-    queryFn: fetchAlerts,
+    queryKey: ['alerts', activeOrgId],
+    queryFn: () => {
+      if (!activeOrgId) return [];
+      return fetchAlerts();
+    },
     staleTime: 0, // Always fetch fresh data
     gcTime: 0, // Don't cache
     refetchOnMount: true,
-    refetchOnWindowFocus: true
+    refetchOnWindowFocus: true,
+    enabled: !!activeOrgId
   });
 
   const ackMutation = useMutation({
@@ -29,23 +35,8 @@ export default function Alerts() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['alerts'] }); toast({ title: 'Restocked', description: 'Inventory updated' }); }
   });
 
-  const sseRef = useRef<EventSource | null>(null);
-  useEffect(() => {
-    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
-    const url = base.replace(/\/$/, '') + '/events/stream';
-    const es = new EventSource(url, { withCredentials: true } as any);
-    sseRef.current = es;
-    es.onmessage = (evt) => {
-      try {
-        const event = JSON.parse(evt.data);
-        if (event?.type === 'alert') {
-          queryClient.invalidateQueries({ queryKey: ['alerts'] });
-        }
-      } catch { }
-    };
-    es.onerror = () => { es.close(); };
-    return () => es.close();
-  }, [queryClient]);
+  // SSE logic removed in favor of Socket.io
+  // Real-time updates are now handled globally via SocketContext
 
   const getSeverityBadge = (quantity: number) => {
     if (quantity === 0) return <Badge className="bg-destructive text-destructive-foreground">Critical</Badge>;

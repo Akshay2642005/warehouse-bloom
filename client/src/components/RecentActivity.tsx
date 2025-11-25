@@ -69,16 +69,16 @@ export function RecentActivity() {
   };
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Recent Activity</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {activities.map((activity) => (
           <div key={activity.id} className="flex items-start gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-            <div className={`rounded-full p-2 ${activity.status === 'success' ? 'bg-success/10' : 
-              activity.status === 'warning' ? 'bg-warning/10' : 
-              activity.status === 'error' ? 'bg-destructive/10' : 'bg-primary-blue/10'}`}>
+            <div className={`rounded-full p-2 ${activity.status === 'success' ? 'bg-success/10' :
+              activity.status === 'warning' ? 'bg-warning/10' :
+                activity.status === 'error' ? 'bg-destructive/10' : 'bg-primary-blue/10'}`}>
               <activity.icon className={`h-4 w-4 ${getIconColor(activity.status)}`} />
             </div>
             <div className="flex-1 space-y-1">

@@ -5,12 +5,17 @@ import {
   BarChart3,
   ShoppingCart,
   Users,
-  Settings,
   Truck,
   AlertTriangle,
   TrendingUp,
   Warehouse,
-  Activity
+  Activity,
+  ChevronsUpDown,
+  LogOut,
+  CreditCard,
+  User,
+  Building,
+  Settings
 } from "lucide-react";
 
 import {
@@ -22,11 +27,20 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@/contexts/UserContext";
+import { useOrganizationStore } from "@/stores/organization.store";
 
 const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: BarChart3 },
@@ -37,7 +51,6 @@ const navigationItems = [
   { title: "Alerts", url: "/alerts", icon: AlertTriangle },
   { title: "Staff", url: "/staff", icon: Users },
   { title: "System Status", url: "/status", icon: Activity },
-  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -47,6 +60,9 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const navigate = useNavigate();
   const { user } = useUser();
+  const { activeOrgId, organizations } = useOrganizationStore();
+
+  const activeOrg = organizations.find(o => o.id === activeOrgId);
 
   const isActive = (path: string) => currentPath === path;
   const getNavClasses = ({ isActive }: { isActive: boolean }) =>
@@ -62,40 +78,42 @@ export function AppSidebar() {
       className={collapsed ? "w-16" : "w-64"}
       collapsible="icon"
     >
-      <SidebarContent className="bg-card border-r">
+      <SidebarContent className="bg-card border-r flex flex-col h-full">
         {/* Logo Section */}
-        <div className="p-6 border-b">
+        <div className={`border-b flex items-center ${collapsed ? 'p-3 justify-center' : 'p-6'}`}>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-blue text-white">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-blue text-white flex-shrink-0">
               <Warehouse className="h-6 w-6" />
             </div>
             {!collapsed && (
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">WarehouseHub</h2>
-                <p className="text-xs text-muted-foreground">Inventory Management</p>
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold text-foreground truncate">WarehouseHub</h2>
+                <p className="text-xs text-muted-foreground truncate">Inventory Management</p>
               </div>
             )}
           </div>
         </div>
 
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-            Main Navigation
-          </SidebarGroupLabel>
+        <SidebarGroup className="flex-1">
+          {!collapsed && (
+            <SidebarGroupLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+              Main Navigation
+            </SidebarGroupLabel>
+          )}
           <SidebarGroupContent>
-            <SidebarMenu className="px-3">
+            <SidebarMenu className={collapsed ? "px-2 items-center" : "px-3"}>
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild tooltip={item.title} className={collapsed ? 'justify-center' : ''}>
                     <NavLink
                       to={item.url}
                       end
                       className={({ isActive }) =>
-                        `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${getNavClasses({ isActive })}`
+                        `flex items-center gap-3 py-2.5 rounded-lg transition-colors ${getNavClasses({ isActive })} ${collapsed ? 'justify-center px-2' : 'px-3'}`
                       }
                     >
                       <item.icon className="h-5 w-5 flex-shrink-0" />
-                      {!collapsed && <span className="font-medium">{item.title}</span>}
+                      {!collapsed && <span className="font-medium truncate">{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -105,24 +123,64 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* User Profile Section */}
-        {!collapsed && (
-          <div className="mt-auto p-6 border-t" key={`${user?.id}-${user?.name}-${user?.email}`}>
-            <button className="w-full" onClick={() => navigate('/profile')}>
-              <div className="flex items-center gap-3 text-left">
-                <Avatar className="h-10 w-10">
-                  {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={displayName} />}
-                  <AvatarFallback className="bg-primary-blue text-white font-medium">
+        <div className={`border-t mt-auto ${collapsed ? 'p-2' : 'p-4'}`}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className={`flex items-center gap-3 w-full rounded-lg hover:bg-sidebar-accent transition-colors group ${collapsed ? 'justify-center p-2' : 'p-2 text-left'}`}>
+                <Avatar className="h-9 w-9 flex-shrink-0">
+                  <AvatarImage src={user?.image} alt={displayName} />
+                  <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground font-medium">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
-                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-                </div>
-              </div>
-            </button>
-          </div>
-        )}
+                {!collapsed && (
+                  <>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-sidebar-foreground group-hover:text-sidebar-accent-foreground transition-colors truncate">{displayName}</p>
+                      <p className="text-xs text-sidebar-foreground/60 truncate">{activeOrg?.name || 'Select Org'}</p>
+                    </div>
+                    <ChevronsUpDown className="h-4 w-4 text-sidebar-foreground/50 group-hover:text-sidebar-foreground transition-colors flex-shrink-0" />
+                  </>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end" side="right">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => navigate('/profile')}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/settings')}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/organization')}>
+                  <Building className="mr-2 h-4 w-4" />
+                  <span>Organization Settings</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/billing')}>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  <span>Billing</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/organization?tab=create')}>
+                  <Building className="mr-2 h-4 w-4" />
+                  <span>Create Organization</span>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => {
+                // Add logout logic here if needed, or redirect
+                window.location.href = '/login';
+              }}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </SidebarContent>
     </Sidebar>
   );
