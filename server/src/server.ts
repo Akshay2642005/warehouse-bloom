@@ -10,7 +10,7 @@ const server = http.createServer(app);
 
 // CORS Configuration
 app.use(cors({
-  origin: [process.env.CLIENT_URL || "http://localhost:5173", "http://localhost:8080"],
+  origin: [process.env.CLIENT_URL || "http://localhost:3000", "http://localhost:8080"],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "Cookie"]

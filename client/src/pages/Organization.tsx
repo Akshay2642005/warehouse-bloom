@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@/contexts/UserContext";
 import { useOrganizationStore } from "@/stores/organization.store";
-import { createOrganization, fetchOrganizationMembers } from "@/api/organizations";
+import { fetchOrganizationMembers } from "@/api/organizations";
 import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from 'react-router-dom';
 import { Member } from "@/types";
@@ -19,8 +19,6 @@ const Organization = () => {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('general');
   const [members, setMembers] = useState<Member[]>([]);
-  const [newOrgName, setNewOrgName] = useState('');
-  const [newOrgSlug, setNewOrgSlug] = useState('');
 
   const activeOrg = organizations.find(o => o.id === activeOrgId);
 
@@ -37,20 +35,7 @@ const Organization = () => {
     }
   }, [activeOrgId]);
 
-  const handleCreateOrg = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const newOrg = await createOrganization({ name: newOrgName, slug: newOrgSlug });
-      setOrganizations([...organizations, newOrg]);
-      setActiveOrg(newOrg.id);
-      toast({ title: "Success", description: "Organization created successfully" });
-      setNewOrgName('');
-      setNewOrgSlug('');
-      setActiveTab('general');
-    } catch (error: any) {
-      toast({ title: "Error", description: error.response?.data?.message || "Failed to create organization", variant: "destructive" });
-    }
-  };
+
 
   return (
     <div className="space-y-6">
@@ -63,7 +48,6 @@ const Organization = () => {
         <TabsList>
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
-          <TabsTrigger value="create">Create New</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
@@ -131,27 +115,7 @@ const Organization = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="create" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Create Organization</CardTitle>
-              <CardDescription>Start a new organization to manage inventory.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleCreateOrg} className="space-y-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="newName">Organization Name</Label>
-                  <Input id="newName" value={newOrgName} onChange={(e) => setNewOrgName(e.target.value)} placeholder="Acme Inc." required />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="newSlug">Slug (URL Identifier)</Label>
-                  <Input id="newSlug" value={newOrgSlug} onChange={(e) => setNewOrgSlug(e.target.value)} placeholder="acme-inc" required />
-                </div>
-                <Button type="submit">Create Organization</Button>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
+
 
         <TabsContent value="settings" className="space-y-4">
           <Card>

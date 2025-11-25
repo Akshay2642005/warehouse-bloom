@@ -4,7 +4,7 @@ import { openAPI, organization } from "better-auth/plugins";
 import prisma from "./prisma.js";
 
 
-const clientOrigin = process.env.CLIENT_ORIGIN?.split(",") || ["http://localhost:8080"];
+const clientOrigin = process.env.CLIENT_ORIGIN?.split(",") || ["http://localhost:3000"];
 const serverOrigin = process.env.SERVER_ORIGIN?.split(",") || ["http://localhost:4000"];
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -12,6 +12,7 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
+    autoSignIn: true,
     requireEmailVerification: false, // Set to true in production with SMTP
   },
   session: {

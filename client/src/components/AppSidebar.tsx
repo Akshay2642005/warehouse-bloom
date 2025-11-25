@@ -164,11 +164,6 @@ export function AppSidebar() {
                   <CreditCard className="mr-2 h-4 w-4" />
                   <span>Billing</span>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate('/organization?tab=create')}>
-                  <Building className="mr-2 h-4 w-4" />
-                  <span>Create Organization</span>
-                </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => {

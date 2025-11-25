@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -9,10 +9,9 @@ import { useMutation } from '@tanstack/react-query';
 import { logoutUser } from '@/api/auth';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/contexts/UserContext'; // your context hook
+import { useUser } from '@/contexts/UserContext';
 import { useOrganizationStore } from '@/stores/organization.store';
-import { fetchUserOrganizations } from '@/api/organizations';
-import { useEffect } from "react";
+import { useListOrganizations, useActiveOrganization, useSession } from '@/lib/auth';
 
 interface LayoutProps {
   children: ReactNode;
@@ -21,25 +20,49 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, setUser } = useUser(); // access user context
+  const { user, setUser } = useUser();
   const { activeOrgId, setActiveOrg, setOrganizations } = useOrganizationStore();
 
+  // Use better-auth hooks to get organizations
+  const { data: betterAuthOrgs } = useListOrganizations();
+  const { data: activeOrg } = useActiveOrganization();
+  const { data: session } = useSession();
+
+  // Debug logging
   useEffect(() => {
-    const loadOrgs = async () => {
-      try {
-        const orgs = await fetchUserOrganizations();
-        setOrganizations(orgs);
-        if (!activeOrgId && orgs.length > 0) {
-          setActiveOrg(orgs[0].id);
-        }
-      } catch (error) {
-        console.error("Failed to load organizations", error);
+    console.log('=== BETTER-AUTH DEBUG ===');
+    console.log('Session:', session);
+    console.log('Organizations:', betterAuthOrgs);
+    console.log('Active Org:', activeOrg);
+  }, [session, betterAuthOrgs, activeOrg]);
+
+  // Sync better-auth organizations with Zustand store
+  useEffect(() => {
+    if (betterAuthOrgs && betterAuthOrgs.length > 0) {
+      // Transform better-auth organizations to match our Organization type
+      const transformedOrgs = betterAuthOrgs.map(org => ({
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        logo: org.logo || undefined, // Convert null to undefined
+        metadata: org.metadata,
+        createdAt: org.createdAt.toISOString(),
+        updatedAt: org.createdAt.toISOString(), // better-auth doesn't have updatedAt
+        role: 'OWNER' as any
+      }));
+
+      setOrganizations(transformedOrgs);
+
+      // If there's an active org from better-auth but not in Zustand, sync it
+      if (activeOrg && !activeOrgId) {
+        setActiveOrg(activeOrg.id);
       }
-    };
-    if (user) {
-      loadOrgs();
+      // If no active org is set, set the first one
+      else if (!activeOrgId) {
+        setActiveOrg(betterAuthOrgs[0].id);
+      }
     }
-  }, [user, activeOrgId, setActiveOrg, setOrganizations]);
+  }, [betterAuthOrgs, activeOrg, activeOrgId, setActiveOrg, setOrganizations]);
 
   const logoutMutation = useMutation({
     mutationFn: logoutUser,
@@ -107,4 +130,3 @@ export function Layout({ children }: LayoutProps) {
     </SidebarProvider>
   );
 }
-
